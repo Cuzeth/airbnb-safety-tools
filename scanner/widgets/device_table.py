@@ -3,7 +3,7 @@
 from rich.text import Text
 from textual.widgets import DataTable
 
-from scanner.models import Device, RiskLevel
+from scanner.models import Device, RiskLevel, PORT_DATABASE
 
 
 RISK_ICONS = {
@@ -24,14 +24,14 @@ class DeviceTable(DataTable):
     def add_device(self, device: Device) -> None:
         """Add a device row to the table."""
         risk_icon = RISK_ICONS.get(device.risk_level, RISK_ICONS[RiskLevel.UNKNOWN])
-        ports_str = ", ".join(str(p) for p in device.open_ports) if device.open_ports else "-"
+        ports_display = _format_ports(device) if device.scan_complete else "scanning..."
         self.add_row(
             risk_icon,
             device.ip,
             device.mac,
             _truncate(device.vendor, 20),
             device.category.value,
-            ports_str if device.scan_complete else "scanning...",
+            ports_display,
             key=device.mac,
         )
 
@@ -42,6 +42,23 @@ class DeviceTable(DataTable):
         except Exception:
             pass
         self.add_device(device)
+
+
+def _format_ports(device: Device) -> Text | str:
+    """Format open ports with protocol names and color coding."""
+    if not device.open_ports:
+        return "-"
+    parts = Text()
+    for i, port in enumerate(device.open_ports):
+        if i > 0:
+            parts.append(" ")
+        info = PORT_DATABASE.get(port)
+        if info:
+            style = "bold red" if info.risk == RiskLevel.HIGH else "yellow"
+            parts.append(f"{port}", style=style)
+        else:
+            parts.append(f"{port}")
+    return parts
 
 
 def _truncate(text: str, length: int) -> str:

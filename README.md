@@ -37,22 +37,46 @@ python -m scanner
 | Key | Action |
 |-----|--------|
 | `s` | Start network scan |
+| `o` | Open selected device's web interface in browser |
 | `q` | Quit |
 | Arrow keys | Navigate device list |
 
 ## How It Works
 
 1. **Network Discovery** - ARP scan (sudo) or nmap ping scan to find all devices on the local /24 subnet
-2. **Vendor Lookup** - Identifies device manufacturers from MAC address OUI database
-3. **Port Scanning** - Checks camera-specific ports (RTSP 554, Dahua 37777, Hikvision 8000, etc.)
+2. **Vendor Lookup** - Identifies device manufacturers from MAC address OUI database (150+ IEEE-verified prefixes)
+3. **Port Scanning** - Checks 20+ camera-specific ports with detailed protocol identification
 4. **Risk Assessment** - Combines manufacturer + open ports into risk levels:
    - **HIGH** (red): Known camera manufacturer or camera streaming ports detected
    - **MEDIUM** (yellow): IoT/smart home device or suspicious ports
    - **LOW** (green): Normal device (computer, phone, router)
+5. **Port Details** - Each open port shows protocol name, full description, and risk level
+6. **Browser Integration** - Press `o` to open a device's web interface (HTTP/HTTPS ports) directly in your browser
+
+## Ports Scanned
+
+| Port | Protocol | Description |
+|------|----------|-------------|
+| 554 | RTSP | Standard video streaming (all IP cameras) |
+| 8554 | RTSP-Alt | Alternate RTSP |
+| 1935 | RTMP | Live video streaming |
+| 37777 | Dahua-TCP | Dahua camera control |
+| 37778 | Dahua-UDP | Dahua video data |
+| 8000 | Hikvision-SDK | Hikvision iVMS management |
+| 6668 | Wyze-TUTK | Wyze P2P streaming |
+| 34567 | XMEye | Budget IP camera protocol |
+| 80/443 | HTTP/HTTPS | Camera web admin panels |
+| 8080/8443 | HTTP-Alt | Alternate web interfaces |
+| 5000/5001 | NAS | Synology Surveillance Station |
+| 3478 | STUN/TURN | WebRTC NAT traversal |
 
 ## Known Camera Brands Detected
 
-Hikvision, Dahua, Wyze, Ring, Arlo, Axis, Foscam, Amcrest, Reolink, Vivotek, Uniview, Eufy, TP-Link Tapo, Nest, Lorex, Swann, and more.
+**Via MAC OUI (150+ prefixes from IEEE registry):**
+Hikvision (81 prefixes), Dahua (27), Ring (12), Wyze (6), Arlo (6), Amcrest (4), Axis, Foscam, Reolink, Vivotek, Uniview, Hanwha/Wisenet, FLIR, Xiongmai/XMEye, Ubiquiti/UniFi, TP-Link/Tapo, Nest
+
+**Via vendor name matching:**
+All of the above plus Lorex, Swann, Eufy/Anker, Jovision, Tuya, Shelly, Espressif
 
 ## Limitations
 

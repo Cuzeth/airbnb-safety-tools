@@ -5,7 +5,8 @@
       "Bash(source .venv/bin/activate)",
       "Bash(python3 -m pip install -e .)",
       "Bash(python3 -c \"from scanner.app import SafeStayApp; print\\(''All imports OK''\\)\")",
-      "Bash(nmap --version)"
+      "Bash(nmap --version)",
+      "WebSearch"
     ]
   }
 }

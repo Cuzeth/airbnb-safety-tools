@@ -3,7 +3,7 @@
 from rich.text import Text
 from textual.widgets import Static
 
-from scanner.models import Device, RiskLevel
+from scanner.models import Device, RiskLevel, PORT_DATABASE
 
 
 RISK_STYLES = {
@@ -43,15 +43,37 @@ class DetailPanel(Static):
         risk_style = RISK_STYLES.get(device.risk_level, "dim")
         lines.append(f"{device.risk_level.value.upper()}\n", style=risk_style)
 
+        # Open ports with detailed descriptions
         if device.open_ports:
-            lines.append("\nOpen Ports:\n", style="bold")
+            lines.append("\nOpen Ports:\n", style="bold underline")
             for port in device.open_ports:
-                lines.append(f"  {port}\n")
+                port_info = PORT_DATABASE.get(port)
+                if port_info:
+                    port_risk_style = RISK_STYLES.get(port_info.risk, "dim")
+                    lines.append(f"  {port}", style="bold")
+                    lines.append(f"/{port_info.protocol}", style=port_risk_style)
+                    if port_info.web_openable:
+                        url = port_info.url_for.format(ip=device.ip) if port_info.url_for else ""
+                        lines.append(f" [open: {url}]", style="bold cyan underline")
+                    lines.append(f"\n    {port_info.description}\n", style="dim")
+                else:
+                    lines.append(f"  {port}\n", style="bold")
+
+        # Openable ports summary
+        openable = device.get_openable_ports()
+        if openable:
+            lines.append("\nBrowser-openable:\n", style="bold underline")
+            for port, url in openable:
+                lines.append(f"  [o] ", style="bold cyan")
+                lines.append(f"{url}\n", style="cyan underline")
+            lines.append("\nPress ", style="dim")
+            lines.append("o", style="bold cyan")
+            lines.append(" to open in browser\n", style="dim")
 
         if device.risk_reasons:
-            lines.append("\nRisk Reasons:\n", style="bold")
+            lines.append("\nRisk Analysis:\n", style="bold underline")
             for reason in device.risk_reasons:
-                lines.append(f"  - {reason}\n", style=risk_style)
+                lines.append(f"  \u2022 {reason}\n", style=risk_style)
 
         if not device.scan_complete:
             lines.append("\n")

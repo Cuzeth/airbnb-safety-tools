@@ -1,5 +1,7 @@
 """SafeStay Scanner - Main TUI application."""
 
+import webbrowser
+
 from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -21,6 +23,7 @@ class SafeStayApp(App):
     CSS_PATH = "app.tcss"
     BINDINGS = [
         Binding("s", "start_scan", "Scan Network"),
+        Binding("o", "open_port", "Open in Browser"),
         Binding("q", "quit", "Quit"),
     ]
 
@@ -28,6 +31,7 @@ class SafeStayApp(App):
         super().__init__()
         self.devices: dict[str, Device] = {}
         self.subnet: str | None = None
+        self._selected_mac: str | None = None
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -57,8 +61,29 @@ class SafeStayApp(App):
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
         """Update detail panel when a row is selected."""
         if event.row_key and event.row_key.value in self.devices:
+            self._selected_mac = event.row_key.value
             panel = self.query_one("#detail-panel", DetailPanel)
             panel.show_device(self.devices[event.row_key.value])
+
+    def action_open_port(self) -> None:
+        """Open the first browser-openable port of the selected device."""
+        if not self._selected_mac or self._selected_mac not in self.devices:
+            self.notify("No device selected", severity="warning")
+            return
+
+        device = self.devices[self._selected_mac]
+        openable = device.get_openable_ports()
+        if not openable:
+            self.notify(
+                f"No web interface found on {device.ip}",
+                severity="warning",
+            )
+            return
+
+        # Open the first available web interface
+        port, url = openable[0]
+        webbrowser.open(url)
+        self.notify(f"Opening {url}")
 
     def action_start_scan(self) -> None:
         """Start network scan."""

@@ -2,7 +2,7 @@
 
 from mac_vendor_lookup import MacLookup
 
-from scanner.models import Device, DeviceCategory, RiskLevel
+from scanner.models import Device, DeviceCategory, RiskLevel, PORT_DATABASE
 from scanner.oui_database import categorize_by_vendor, lookup_oui_prefix
 
 _mac_lookup: MacLookup | None = None
@@ -32,32 +32,14 @@ def lookup_vendor(device: Device) -> None:
         device.vendor = "Unknown"
 
 
-# Ports that strongly suggest a camera/streaming device
-HIGH_RISK_PORTS = {
-    554: "RTSP streaming port (common on cameras)",
-    8554: "Alternate RTSP port",
-    37777: "Dahua camera protocol port",
-    37778: "Dahua camera protocol port",
-    8000: "Hikvision camera protocol port",
-    8200: "Hikvision camera protocol port",
-    6668: "Wyze camera port",
-    6669: "Wyze camera port",
-    1935: "RTMP streaming port",
-}
-
-# Ports that are somewhat suspicious on unknown devices
-MEDIUM_RISK_PORTS = {
-    8080: "Alternate HTTP (possible camera web interface)",
-    8443: "Alternate HTTPS (possible camera web interface)",
-    9000: "Possible camera management port",
-    5000: "Possible NAS/surveillance station",
-    5001: "Possible NAS/surveillance station (SSL)",
-    3478: "STUN/TURN (WebRTC, used by some cameras)",
-}
-
-
 def fingerprint_device(device: Device) -> None:
-    """Analyze device and assign risk level, category, and reasons."""
+    """Analyze device and assign risk level, category, and reasons.
+
+    Risk assessment combines three signals:
+    1. MAC OUI prefix — known camera manufacturers get HIGH immediately
+    2. Vendor name matching — fallback for OUIs not in our database
+    3. Open port analysis — camera-specific protocols are strong indicators
+    """
     reasons: list[str] = []
     risk = RiskLevel.LOW
     category = DeviceCategory.UNKNOWN
@@ -67,37 +49,65 @@ def fingerprint_device(device: Device) -> None:
     if brand:
         risk = RiskLevel.HIGH
         category = DeviceCategory.CAMERA
-        reasons.append(f"Known camera manufacturer: {brand}")
+        reasons.append(
+            f"MAC prefix matches known camera manufacturer: {brand} "
+            f"(OUI {device.mac.upper()[:8]})"
+        )
 
     # 2. Check vendor name keywords
     if device.vendor and device.vendor != "Unknown":
         result = categorize_by_vendor(device.vendor)
         if result:
             cat, vendor_risk = result
-            if vendor_risk.value > risk.value or risk == RiskLevel.LOW:
-                # Enum comparison: HIGH > MEDIUM > LOW
-                if _risk_priority(vendor_risk) > _risk_priority(risk):
-                    risk = vendor_risk
+            if _risk_priority(vendor_risk) > _risk_priority(risk):
+                risk = vendor_risk
             if category == DeviceCategory.UNKNOWN:
                 category = cat
             if vendor_risk in (RiskLevel.HIGH, RiskLevel.MEDIUM):
-                reasons.append(f"Vendor '{device.vendor}' associated with {cat.value}")
+                reasons.append(
+                    f"Vendor \"{device.vendor}\" is a known {cat.value} manufacturer"
+                )
 
-    # 3. Check open ports
+    # 3. Check open ports against our detailed port database
+    has_streaming_port = False
+    has_web_interface = False
+
     for port in device.open_ports:
-        if port in HIGH_RISK_PORTS:
-            risk = RiskLevel.HIGH
-            reasons.append(f"Port {port}: {HIGH_RISK_PORTS[port]}")
+        port_info = PORT_DATABASE.get(port)
+        if port_info is None:
+            continue
+
+        if _risk_priority(port_info.risk) > _risk_priority(risk):
+            risk = port_info.risk
+
+        if port_info.risk == RiskLevel.HIGH:
+            reasons.append(
+                f"Port {port}/{port_info.protocol}: {port_info.description}"
+            )
             if category == DeviceCategory.UNKNOWN:
                 category = DeviceCategory.CAMERA
-        elif port in MEDIUM_RISK_PORTS:
-            if _risk_priority(RiskLevel.MEDIUM) > _risk_priority(risk):
-                risk = RiskLevel.MEDIUM
-            reasons.append(f"Port {port}: {MEDIUM_RISK_PORTS[port]}")
+            has_streaming_port = True
+        elif port_info.risk == RiskLevel.MEDIUM:
+            reasons.append(
+                f"Port {port}/{port_info.protocol}: {port_info.description}"
+            )
 
-    # 4. HTTP ports on camera-category devices bump confidence
-    if category == DeviceCategory.CAMERA and any(p in device.open_ports for p in (80, 443)):
-        reasons.append("HTTP/HTTPS web interface (likely camera admin panel)")
+        if port_info.web_openable:
+            has_web_interface = True
+
+    # 4. Combined signal: camera manufacturer + web interface = admin panel
+    if category == DeviceCategory.CAMERA and has_web_interface and not has_streaming_port:
+        reasons.append(
+            "Web interface detected on a camera device — likely an admin panel "
+            "where you can view live feeds or change settings"
+        )
+
+    # 5. Combined signal: streaming port + web interface = very likely camera
+    if has_streaming_port and has_web_interface:
+        reasons.append(
+            "Both streaming protocol and web interface detected — "
+            "strong indicator of an active IP camera"
+        )
 
     device.risk_level = risk
     device.category = category
