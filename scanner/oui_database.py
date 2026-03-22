@@ -220,6 +220,32 @@ CAMERA_OUI_PREFIXES: dict[str, str] = {
     "B4:FB:E4": "Ubiquiti/UniFi",
     "F0:9F:C2": "Ubiquiti/UniFi",
     "FC:EC:DA": "Ubiquiti/UniFi",
+    # ── Xiongmai additional (appropriated from defunct companies) ────────
+    "00:12:10": "Xiongmai/XMEye",
+    "00:12:11": "Xiongmai/XMEye",
+}
+
+# ══════════════════════════════════════════════════════════════════════
+# CHIPSET VENDORS — WiFi modules commonly found inside hidden cameras.
+# These are NOT camera brands; they are the WiFi chips soldered onto
+# cheap camera PCBs (Anyka AK3918, Ingenic T20, Goke GK7102, etc.).
+# Kept separate from CAMERA_OUI_PREFIXES because these chips also
+# appear in non-camera devices (printers, TVs, IoT). The port scan
+# determines if it's actually a camera.
+# ══════════════════════════════════════════════════════════════════════
+CHIPSET_OUI_PREFIXES: dict[str, str] = {
+    # ── Realtek Semiconductor (RTL8188/RTL8189/RTL8192 WiFi modules) ─────
+    # THE most common WiFi chip in hidden spy cameras. Also in printers,
+    # smart TVs, etc., so MEDIUM risk until ports confirm.
+    "00:E0:4C": "Realtek [WiFi module]",
+    "52:54:00": "Realtek [WiFi module]",
+    # ── MediaTek / Ralink (MT7601/MT7628 WiFi modules) ───────────────────
+    # MT7601U is extremely common in Goke GK7102-based spy cameras.
+    # 00:0C:43 was originally Ralink Technology, acquired by MediaTek 2011.
+    "00:0C:43": "MediaTek/Ralink [WiFi module]",
+    "00:0C:E7": "MediaTek [WiFi module]",
+    "00:0A:00": "MediaTek [WiFi module]",
+    "00:17:A5": "MediaTek [WiFi module]",
 }
 
 # Vendor name substrings mapped to device categories.
@@ -250,6 +276,15 @@ VENDOR_CATEGORY_MAP: dict[str, tuple[DeviceCategory, RiskLevel]] = {
     "xmeye": (DeviceCategory.CAMERA, RiskLevel.HIGH),
     "tapo": (DeviceCategory.CAMERA, RiskLevel.HIGH),
     "jovision": (DeviceCategory.CAMERA, RiskLevel.HIGH),
+    # MEDIUM risk - chipset vendors found inside hidden cameras
+    # These WiFi chips are in many devices, but combined with camera ports → HIGH
+    "realtek": (DeviceCategory.IOT_GENERIC, RiskLevel.MEDIUM),
+    "ralink": (DeviceCategory.IOT_GENERIC, RiskLevel.MEDIUM),
+    "mediatek": (DeviceCategory.IOT_GENERIC, RiskLevel.MEDIUM),
+    "anyka": (DeviceCategory.CAMERA, RiskLevel.HIGH),
+    "goke": (DeviceCategory.CAMERA, RiskLevel.HIGH),
+    "ingenic": (DeviceCategory.CAMERA, RiskLevel.HIGH),
+    "hisilicon": (DeviceCategory.IOT_GENERIC, RiskLevel.MEDIUM),
     # MEDIUM risk - IoT / smart home
     "amazon": (DeviceCategory.SMART_SPEAKER, RiskLevel.MEDIUM),
     "google": (DeviceCategory.SMART_HOME, RiskLevel.MEDIUM),
@@ -280,9 +315,21 @@ VENDOR_CATEGORY_MAP: dict[str, tuple[DeviceCategory, RiskLevel]] = {
 
 def lookup_oui_prefix(mac: str) -> str | None:
     """Check if MAC address matches a known camera manufacturer prefix.
-    Returns the brand name or None."""
+    Returns the brand name or None. Does NOT match chipset-only vendors."""
     prefix = mac.upper()[:8]  # "AA:BB:CC"
     return CAMERA_OUI_PREFIXES.get(prefix)
+
+
+def lookup_chipset_prefix(mac: str) -> str | None:
+    """Check if MAC address matches a known WiFi chipset vendor.
+    Returns chipset name or None. These are MEDIUM risk (not HIGH)."""
+    prefix = mac.upper()[:8]
+    return CHIPSET_OUI_PREFIXES.get(prefix)
+
+
+def lookup_any_prefix(mac: str) -> str | None:
+    """Check camera brands first, then chipset vendors. Returns name or None."""
+    return lookup_oui_prefix(mac) or lookup_chipset_prefix(mac)
 
 
 def categorize_by_vendor(vendor: str) -> tuple[DeviceCategory, RiskLevel] | None:

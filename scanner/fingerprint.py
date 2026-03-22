@@ -3,7 +3,7 @@
 from mac_vendor_lookup import MacLookup
 
 from scanner.models import Device, DeviceCategory, RiskLevel, PORT_DATABASE
-from scanner.oui_database import categorize_by_vendor, lookup_oui_prefix
+from scanner.oui_database import categorize_by_vendor, lookup_any_prefix, lookup_chipset_prefix, lookup_oui_prefix
 
 _mac_lookup: MacLookup | None = None
 
@@ -21,6 +21,12 @@ def lookup_vendor(device: Device) -> None:
     brand = lookup_oui_prefix(device.mac)
     if brand:
         device.vendor = brand
+        return
+
+    # Check chipset vendor OUI (Realtek, MediaTek, etc.)
+    chipset = lookup_chipset_prefix(device.mac)
+    if chipset:
+        device.vendor = chipset
         return
 
     # Fall back to mac-vendor-lookup library
@@ -44,14 +50,23 @@ def fingerprint_device(device: Device) -> None:
     risk = RiskLevel.LOW
     category = DeviceCategory.UNKNOWN
 
-    # 1. Check hardcoded camera OUI
+    # 1. Check hardcoded camera OUI (brand-name cameras → HIGH)
     brand = lookup_oui_prefix(device.mac)
+    chipset = lookup_chipset_prefix(device.mac)
     if brand:
         risk = RiskLevel.HIGH
         category = DeviceCategory.CAMERA
         reasons.append(
             f"MAC prefix matches known camera manufacturer: {brand} "
             f"(OUI {device.mac.upper()[:8]})"
+        )
+    elif chipset:
+        # Chipset vendor (Realtek, MediaTek) — MEDIUM until ports confirm
+        risk = RiskLevel.MEDIUM
+        category = DeviceCategory.IOT_GENERIC
+        reasons.append(
+            f"WiFi chipset vendor: {chipset} (OUI {device.mac.upper()[:8]}) — "
+            "commonly found inside hidden cameras, but also in many other IoT devices"
         )
 
     # 2. Check vendor name keywords
@@ -71,6 +86,8 @@ def fingerprint_device(device: Device) -> None:
     # 3. Check open ports against our detailed port database
     has_streaming_port = False
     has_web_interface = False
+    has_p2p_port = False
+    has_backdoor = False
 
     for port in device.open_ports:
         port_info = PORT_DATABASE.get(port)
@@ -87,6 +104,11 @@ def fingerprint_device(device: Device) -> None:
             if category == DeviceCategory.UNKNOWN:
                 category = DeviceCategory.CAMERA
             has_streaming_port = True
+            # Track specific hidden-camera indicators
+            if port in (32100, 8600):
+                has_p2p_port = True
+            if port in (23, 9527):
+                has_backdoor = True
         elif port_info.risk == RiskLevel.MEDIUM:
             reasons.append(
                 f"Port {port}/{port_info.protocol}: {port_info.description}"
@@ -95,14 +117,47 @@ def fingerprint_device(device: Device) -> None:
         if port_info.web_openable:
             has_web_interface = True
 
-    # 4. Combined signal: camera manufacturer + web interface = admin panel
+    # 4. Chipset vendor + camera ports = likely hidden camera
+    # Generic WiFi chip vendors (Realtek, MediaTek, Espressif) are MEDIUM on their
+    # own, but if they also have camera-specific ports open, escalate to HIGH.
+    is_chipset_vendor = _is_generic_chipset_vendor(device.vendor)
+    if is_chipset_vendor and has_streaming_port:
+        risk = RiskLevel.HIGH
+        category = DeviceCategory.CAMERA
+        reasons.append(
+            f"Generic WiFi chipset ({device.vendor}) with camera ports open — "
+            "likely a hidden/spy camera using a commodity WiFi module "
+            "(Anyka, Ingenic, or Goke SoC)"
+        )
+
+    # 5. P2P port is an extremely strong hidden camera indicator
+    if has_p2p_port:
+        risk = RiskLevel.HIGH
+        category = DeviceCategory.CAMERA
+        reasons.append(
+            "P2P cloud protocol detected — this is the primary communication "
+            "method for hidden spy cameras. The device streams video to a cloud "
+            "relay server rather than exposing local RTSP"
+        )
+
+    # 6. Telnet/debug backdoor on IoT device = cheap camera
+    if has_backdoor and category in (DeviceCategory.IOT_GENERIC, DeviceCategory.UNKNOWN):
+        if any(p in device.open_ports for p in (554, 8554, 10554, 80, 81, 32100)):
+            risk = RiskLevel.HIGH
+            category = DeviceCategory.CAMERA
+            reasons.append(
+                "Debug backdoor + media ports on unknown device — strong indicator "
+                "of a cheap Chinese IP camera with default firmware"
+            )
+
+    # 7. Combined signal: camera manufacturer + web interface = admin panel
     if category == DeviceCategory.CAMERA and has_web_interface and not has_streaming_port:
         reasons.append(
             "Web interface detected on a camera device — likely an admin panel "
             "where you can view live feeds or change settings"
         )
 
-    # 5. Combined signal: streaming port + web interface = very likely camera
+    # 8. Combined signal: streaming port + web interface = very likely camera
     if has_streaming_port and has_web_interface:
         reasons.append(
             "Both streaming protocol and web interface detected — "
@@ -122,3 +177,19 @@ def _risk_priority(risk: RiskLevel) -> int:
         RiskLevel.MEDIUM: 2,
         RiskLevel.HIGH: 3,
     }[risk]
+
+
+# Vendor strings that indicate a generic WiFi chipset (not a camera brand).
+# When these appear WITH camera-specific ports, it strongly suggests a hidden camera.
+_CHIPSET_VENDORS = (
+    "realtek", "ralink", "mediatek", "espressif", "hisilicon",
+    "wifi module", "wireless", "semiconductor",
+)
+
+
+def _is_generic_chipset_vendor(vendor: str) -> bool:
+    """Check if vendor string looks like a WiFi chip manufacturer rather than a device brand."""
+    if not vendor or vendor == "Unknown":
+        return False
+    v = vendor.lower()
+    return any(chip in v for chip in _CHIPSET_VENDORS)

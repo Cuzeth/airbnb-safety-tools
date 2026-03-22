@@ -23,7 +23,16 @@ class SafeStayApp(App):
     CSS_PATH = "app.tcss"
     BINDINGS = [
         Binding("s", "start_scan", "Scan Network"),
-        Binding("o", "open_port", "Open in Browser"),
+        Binding("o", "open_port(0)", "Open in Browser"),
+        Binding("1", "open_port(1)", "Open Port 1", show=False),
+        Binding("2", "open_port(2)", "Open Port 2", show=False),
+        Binding("3", "open_port(3)", "Open Port 3", show=False),
+        Binding("4", "open_port(4)", "Open Port 4", show=False),
+        Binding("5", "open_port(5)", "Open Port 5", show=False),
+        Binding("6", "open_port(6)", "Open Port 6", show=False),
+        Binding("7", "open_port(7)", "Open Port 7", show=False),
+        Binding("8", "open_port(8)", "Open Port 8", show=False),
+        Binding("9", "open_port(9)", "Open Port 9", show=False),
         Binding("q", "quit", "Quit"),
     ]
 
@@ -65,8 +74,8 @@ class SafeStayApp(App):
             panel = self.query_one("#detail-panel", DetailPanel)
             panel.show_device(self.devices[event.row_key.value])
 
-    def action_open_port(self) -> None:
-        """Open the first browser-openable port of the selected device."""
+    def action_open_port(self, index: int) -> None:
+        """Open a browser-openable port. index=0 (or 'o') opens the first, 1-9 opens specific."""
         if not self._selected_mac or self._selected_mac not in self.devices:
             self.notify("No device selected", severity="warning")
             return
@@ -80,8 +89,16 @@ class SafeStayApp(App):
             )
             return
 
-        # Open the first available web interface
-        port, url = openable[0]
+        # index=0 means 'o' key → open first port; 1-9 → specific port
+        target_idx = 0 if index == 0 else index - 1
+        if target_idx >= len(openable):
+            self.notify(
+                f"No port [{index}] — device has {len(openable)} openable port(s)",
+                severity="warning",
+            )
+            return
+
+        port, url = openable[target_idx]
         webbrowser.open(url)
         self.notify(f"Opening {url}")
 

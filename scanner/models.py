@@ -171,6 +171,51 @@ PORT_DATABASE: dict[int, PortInfo] = {
         description="Tianshitong/TOPSEE data port — proprietary data channel used by "
                     "TOPSEE branded IP cameras for video transport",
     ),
+    # ── Hidden camera / spy camera ports ─────────────────────────────────
+    # These ports are critical for detecting cheap hidden cameras that don't
+    # use brand-name OUIs. Sources:
+    #   - https://pierrekim.github.io/blog/2017-03-08-camera-goahead-0day.html
+    #   - Warwick University "Spying on the Spy" (Herodotou & Hao, 2023)
+    #   - SEC Consult Xiongmai advisory
+    32100: PortInfo(
+        port=32100, protocol="CS2/PPPP", risk=RiskLevel.HIGH, web_openable=False,
+        description="CS2 Network P2P protocol (PPPP) — the primary port used by hidden "
+                    "spy cameras (LookCam, V380, VRCAM). Uses UDP hole-punching for NAT "
+                    "traversal. A response on this port is a very strong indicator of a "
+                    "hidden camera. Common on Anyka AK3918-based modules",
+    ),
+    10554: PortInfo(
+        port=10554, protocol="RTSP-Alt", risk=RiskLevel.HIGH, web_openable=False,
+        description="Alternate RTSP port — commonly used by cheap WIFICAM-type hidden "
+                    "cameras and GoAhead-based firmware. Often unauthenticated, allowing "
+                    "direct video stream access without credentials",
+    ),
+    23: PortInfo(
+        port=23, protocol="Telnet", risk=RiskLevel.HIGH, web_openable=False,
+        description="Telnet — debug/backdoor access left enabled on many cheap Chinese "
+                    "cameras. Indicates a low-quality IoT device with poor security. "
+                    "Common default credentials: root/xmhdipc, root/xc3511, root/123456",
+    ),
+    9527: PortInfo(
+        port=9527, protocol="XM-Console", risk=RiskLevel.HIGH, web_openable=False,
+        description="Xiongmai debug console — telnet-like backdoor on Xiongmai/XMEye "
+                    "cameras and DVRs. Allows remote command execution. Strong indicator "
+                    "of a cheap surveillance device",
+    ),
+    81: PortInfo(
+        port=81, protocol="HTTP-Alt", risk=RiskLevel.MEDIUM, web_openable=True,
+        url_scheme="http",
+        description="Alternate HTTP port — very common on cheap IP cameras that use port "
+                    "81 instead of 80 for their web interface. Check for GoAhead server "
+                    "or camera-specific paths (/system.ini, /snapshot.jpg)",
+    ),
+    # ── Additional P2P / cloud camera ports ──────────────────────────────
+    8600: PortInfo(
+        port=8600, protocol="TUTK-P2P", risk=RiskLevel.HIGH, web_openable=False,
+        description="ThroughTek TUTK P2P relay — used by 50M+ IoT devices including "
+                    "many hidden cameras. Part of the Kalay P2P platform that enables "
+                    "cloud streaming without exposing local RTSP",
+    ),
 }
 
 # Ordered list of ports to scan (derived from database)

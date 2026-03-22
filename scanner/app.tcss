@@ -20,6 +20,7 @@
     padding: 1 2;
     border-left: tall $accent;
     background: $surface;
+    overflow-y: auto;
 }
 
 #status-bar {
