@@ -1,0 +1,31 @@
+#banner {
+    dock: top;
+    height: auto;
+    padding: 0 1;
+    background: $surface;
+    color: $text;
+}
+
+#main {
+    height: 1fr;
+}
+
+#device-table {
+    width: 3fr;
+}
+
+#detail-panel {
+    width: 1fr;
+    min-width: 35;
+    padding: 1 2;
+    border-left: tall $accent;
+    background: $surface;
+}
+
+#status-bar {
+    dock: bottom;
+    height: 1;
+    padding: 0 1;
+    background: $primary;
+    color: $text;
+}
