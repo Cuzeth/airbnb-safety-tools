@@ -84,6 +84,10 @@ def fingerprint_device(device: Device) -> None:
                 )
 
     # 3. Check open ports against our detailed port database
+    #    But first: known consumer brands (Apple, Samsung, etc.) use ports like
+    #    5000 (AirPlay), 80 (settings), 3478 (FaceTime STUN) for normal services.
+    #    Don't flag those as suspicious.
+    is_safe_vendor = _is_known_safe_vendor(device.vendor)
     has_streaming_port = False
     has_web_interface = False
     has_p2p_port = False
@@ -92,6 +96,14 @@ def fingerprint_device(device: Device) -> None:
     for port in device.open_ports:
         port_info = PORT_DATABASE.get(port)
         if port_info is None:
+            continue
+
+        # Skip false-positive ports on known safe vendors
+        if is_safe_vendor and port in _SAFE_VENDOR_IGNORE_PORTS:
+            reasons.append(
+                f"Port {port}/{port_info.protocol}: "
+                f"{_SAFE_VENDOR_IGNORE_PORTS[port]} (normal for {device.vendor})"
+            )
             continue
 
         if _risk_priority(port_info.risk) > _risk_priority(risk):
@@ -193,3 +205,31 @@ def _is_generic_chipset_vendor(vendor: str) -> bool:
         return False
     v = vendor.lower()
     return any(chip in v for chip in _CHIPSET_VENDORS)
+
+
+# Vendors where certain ports are expected and should NOT raise risk.
+# e.g. Apple uses 5000 (AirPlay), 3478 (FaceTime STUN), 80 (config).
+_SAFE_VENDORS = (
+    "apple", "samsung", "google", "sonos", "roku",
+    "lg electronics", "microsoft", "intel", "dell", "lenovo",
+    "hewlett", "netgear", "linksys", "asus", "arris", "cisco", "motorola",
+)
+
+# Ports to ignore on safe vendors, with explanation.
+_SAFE_VENDOR_IGNORE_PORTS: dict[int, str] = {
+    5000: "AirPlay / smart device service",
+    5001: "AirPlay SSL / smart device service",
+    80: "Device settings web UI",
+    443: "Device settings HTTPS",
+    3478: "FaceTime / VoIP STUN",
+    8080: "Device management",
+    9000: "Device service port",
+}
+
+
+def _is_known_safe_vendor(vendor: str) -> bool:
+    """Check if the vendor is a known consumer electronics brand (not a camera company)."""
+    if not vendor or vendor == "Unknown":
+        return False
+    v = vendor.lower()
+    return any(safe in v for safe in _SAFE_VENDORS)

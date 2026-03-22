@@ -1,5 +1,7 @@
 # SafeStay Scanner
 
+> **Disclaimer:** This tool is intended for personal safety use only — to check for hidden cameras in spaces you are staying in (your Airbnb, hotel room, rental, etc.). Do not run this on networks you do not have authorization to scan. Unauthorized network scanning may violate local laws and terms of service. I do not condone or take responsibility for any misuse of this tool.
+
 Network scanner TUI to detect hidden cameras and suspicious devices at Airbnbs, hotels, and rentals.
 
 Scans the local WiFi network, identifies devices by manufacturer, checks for camera-specific ports (RTSP, etc.), and flags suspicious devices with risk levels.
