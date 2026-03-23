@@ -6,18 +6,34 @@ Network scanner TUI to detect hidden cameras and suspicious devices at Airbnbs, 
 
 Scans the local WiFi network, identifies devices by manufacturer, checks for camera-specific ports (RTSP, etc.), and flags suspicious devices with risk levels.
 
-## Prerequisites
-
-- **Python 3.10+**
-- **nmap**: `brew install nmap`
-
 ## Install
 
+### Pre-built binaries (recommended)
+
+Download the latest binary for your platform from [Releases](https://github.com/Cuzeth/airbnb-safety-tools/releases).
+
 ```bash
+# macOS (Apple Silicon)
+curl -L -o safestay https://github.com/Cuzeth/airbnb-safety-tools/releases/latest/download/safestay-darwin-arm64
+chmod +x safestay
+
+# macOS (Intel)
+curl -L -o safestay https://github.com/Cuzeth/airbnb-safety-tools/releases/latest/download/safestay-darwin-amd64
+chmod +x safestay
+
+# Linux (x86_64)
+curl -L -o safestay https://github.com/Cuzeth/airbnb-safety-tools/releases/latest/download/safestay-linux-amd64
+chmod +x safestay
+```
+
+### Build from source
+
+Requires Go 1.26+.
+
+```bash
+git clone https://github.com/Cuzeth/airbnb-safety-tools.git
 cd airbnb-safety-tools
-python3 -m venv .venv
-source .venv/bin/activate
-python3 -m pip install -e .
+make build
 ```
 
 ## Usage
@@ -25,13 +41,13 @@ python3 -m pip install -e .
 For best results, run with `sudo` (enables ARP scanning which finds more devices):
 
 ```bash
-sudo .venv/bin/python -m scanner
+sudo ./safestay
 ```
 
-Without sudo (uses nmap ping scan fallback):
+Without sudo (uses nmap ping scan fallback — requires `nmap` installed):
 
 ```bash
-python -m scanner
+./safestay
 ```
 
 ### Controls
@@ -40,20 +56,24 @@ python -m scanner
 |-----|--------|
 | `s` | Start network scan |
 | `o` | Open selected device's web interface in browser |
+| `1`-`9` | Select a port by number |
+| `Tab` | Switch focus between device list and port detail panel |
+| `j`/`k` or arrows | Navigate up/down |
+| `PgUp`/`PgDn` | Scroll by page |
+| `g`/`G` | Jump to top/bottom |
 | `q` | Quit |
-| Arrow keys | Navigate device list |
 
 ## How It Works
 
-1. **Network Discovery** - ARP scan (sudo) or nmap ping scan to find all devices on the local /24 subnet
-2. **Vendor Lookup** - Identifies device manufacturers from MAC address OUI database (150+ IEEE-verified prefixes)
-3. **Port Scanning** - Checks 20+ camera-specific ports with detailed protocol identification
-4. **Risk Assessment** - Combines manufacturer + open ports into risk levels:
+1. **Network Discovery** — ARP scan (sudo) or nmap ping scan to find all devices on the local /24 subnet
+2. **Vendor Lookup** — Identifies device manufacturers from MAC address OUI database (150+ IEEE-verified prefixes)
+3. **Port Scanning** — Checks 20+ camera-specific ports with detailed protocol identification
+4. **Risk Assessment** — Combines manufacturer + open ports into risk levels:
    - **HIGH** (red): Known camera manufacturer or camera streaming ports detected
    - **MEDIUM** (yellow): IoT/smart home device or suspicious ports
    - **LOW** (green): Normal device (computer, phone, router)
-5. **Port Details** - Each open port shows protocol name, full description, and risk level
-6. **Browser Integration** - Press `o` to open a device's web interface (HTTP/HTTPS ports) directly in your browser
+5. **Port Details** — Each open port shows protocol name, full description, and risk level
+6. **Browser Integration** — Press `o` to open a device's web interface (HTTP/HTTPS ports) directly in your browser
 
 ## Ports Scanned
 
