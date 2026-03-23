@@ -7,7 +7,10 @@ package tui
 //   s          - Start network scan
 //   o          - Open first browser-openable port
 //   1-9        - Open specific numbered port
-//   j / up     - Move selection up
-//   k / down   - Move selection down
-//   pgup/pgdn  - Scroll detail panel
+//   j / down   - Move down / scroll down in the focused pane
+//   k / up     - Move up / scroll up in the focused pane
+//   pgup/pgdn  - Page through the focused pane
+//   g / home   - Jump to top of the focused pane
+//   G / end    - Jump to bottom of the focused pane
+//   tab        - Toggle focus between table and detail
 //   q / ctrl+c - Quit

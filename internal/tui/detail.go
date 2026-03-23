@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
+
 	"github.com/cuz/safestay/internal/model"
 )
 
@@ -42,7 +44,7 @@ func renderDetail(device *model.Device, width int) string {
 				b.WriteString(BoldStyle.Render(portStr))
 				b.WriteString(portRiskStyled(proto, portInfo.Risk))
 				b.WriteString("\n")
-				for _, line := range wordWrapLines(portInfo.Description, width-4) {
+				for _, line := range wrapTextLines(portInfo.Description, width-4) {
 					b.WriteString("    ")
 					b.WriteString(DimStyle.Render(line))
 					b.WriteString("\n")
@@ -65,10 +67,19 @@ func renderDetail(device *model.Device, width int) string {
 		}
 		for i := 0; i < limit; i++ {
 			pu := openable[i]
-			b.WriteString(fmt.Sprintf("  %s %s\n",
-				BoldCyanStyle.Render(fmt.Sprintf("[%d]", i+1)),
-				CyanStyle.Render(pu.URL),
-			))
+			label := fmt.Sprintf("[%d]", i+1)
+			wrapped := wrapTextLines(pu.URL, width-6)
+			for lineIndex, line := range wrapped {
+				if lineIndex == 0 {
+					b.WriteString("  ")
+					b.WriteString(BoldCyanStyle.Render(label))
+					b.WriteString(" ")
+				} else {
+					b.WriteString("     ")
+				}
+				b.WriteString(CyanStyle.Render(line))
+				b.WriteString("\n")
+			}
 		}
 		b.WriteString("\n")
 		b.WriteString(DimStyle.Render("Press "))
@@ -88,13 +99,14 @@ func renderDetail(device *model.Device, width int) string {
 		b.WriteString(UnderlineStyle.Render("Risk Analysis:"))
 		b.WriteString("\n")
 		for _, reason := range device.RiskReasons {
-			lines := wordWrapLines(reason, width-4)
+			lines := wrapTextLines(reason, width-4)
 			for j, line := range lines {
 				if j == 0 {
-					b.WriteString(riskReasonStyled("  \u2022 "+line+"\n", device.RiskLevel))
+					b.WriteString(riskReasonStyled("  \u2022 "+line, device.RiskLevel))
 				} else {
-					b.WriteString(riskReasonStyled("    "+line+"\n", device.RiskLevel))
+					b.WriteString(riskReasonStyled("    "+line, device.RiskLevel))
 				}
+				b.WriteString("\n")
 			}
 		}
 	}
@@ -105,6 +117,27 @@ func renderDetail(device *model.Device, width int) string {
 	}
 
 	return b.String()
+}
+
+func renderDetailPlaceholder(width int, title, body string) string {
+	if width < 10 {
+		width = 10
+	}
+	if title == "" {
+		title = "DEVICE DETAILS"
+	}
+	if body == "" {
+		body = "Select a device to view details."
+	}
+
+	var b strings.Builder
+	b.WriteString(UnderlineStyle.Render(title))
+	b.WriteString("\n\n")
+	for _, line := range wrapTextLines(body, width) {
+		b.WriteString(DimStyle.Render(line))
+		b.WriteString("\n")
+	}
+	return strings.TrimRight(b.String(), "\n")
 }
 
 func writeField(b *strings.Builder, label, value string) {
@@ -150,27 +183,86 @@ func riskReasonStyled(text string, risk model.RiskLevel) string {
 	}
 }
 
-// wordWrapLines splits text into lines that fit within width.
-func wordWrapLines(text string, width int) []string {
+// wrapTextLines splits text into lines that fit within width using display width
+// instead of raw byte length, and it hard-wraps long tokens when needed.
+func wrapTextLines(text string, width int) []string {
 	if width <= 0 {
 		return []string{text}
 	}
+
+	paragraphs := strings.Split(text, "\n")
+	var lines []string
+	for _, paragraph := range paragraphs {
+		wrapped := wrapParagraph(paragraph, width)
+		lines = append(lines, wrapped...)
+	}
+	if len(lines) == 0 {
+		return []string{""}
+	}
+	return lines
+}
+
+func wrapParagraph(text string, width int) []string {
 	words := strings.Fields(text)
 	if len(words) == 0 {
 		return []string{""}
 	}
-
 	var lines []string
-	current := words[0]
+	current := ""
 
-	for _, word := range words[1:] {
-		if len(current)+1+len(word) <= width {
-			current += " " + word
-		} else {
-			lines = append(lines, current)
-			current = word
+	for _, word := range words {
+		for visibleWidth(word) > width {
+			if current != "" {
+				lines = append(lines, current)
+				current = ""
+			}
+			chunk, rest := splitByWidth(word, width)
+			lines = append(lines, chunk)
+			word = rest
 		}
+
+		if current == "" {
+			current = word
+			continue
+		}
+
+		candidate := current + " " + word
+		if visibleWidth(candidate) <= width {
+			current = candidate
+			continue
+		}
+
+		lines = append(lines, current)
+		current = word
 	}
-	lines = append(lines, current)
+
+	if current != "" {
+		lines = append(lines, current)
+	}
+
 	return lines
+}
+
+func splitByWidth(text string, width int) (string, string) {
+	if width <= 0 {
+		return "", text
+	}
+
+	var b strings.Builder
+	for i, r := range text {
+		next := b.String() + string(r)
+		if visibleWidth(next) > width {
+			if b.Len() == 0 {
+				return string(r), text[i+len(string(r)):]
+			}
+			return b.String(), text[i:]
+		}
+		b.WriteRune(r)
+	}
+
+	return b.String(), ""
+}
+
+func visibleWidth(text string) int {
+	return lipgloss.Width(text)
 }

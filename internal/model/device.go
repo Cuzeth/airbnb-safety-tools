@@ -72,6 +72,24 @@ type Device struct {
 	ScanComplete bool
 }
 
+// Clone returns a deep copy of the device so background work can safely
+// operate on a snapshot without racing the UI.
+func (d *Device) Clone() *Device {
+	if d == nil {
+		return nil
+	}
+
+	clone := *d
+	if d.OpenPorts != nil {
+		clone.OpenPorts = append([]int(nil), d.OpenPorts...)
+	}
+	if d.RiskReasons != nil {
+		clone.RiskReasons = append([]string(nil), d.RiskReasons...)
+	}
+
+	return &clone
+}
+
 // GetPortInfo returns metadata for a specific port, or nil.
 func (d *Device) GetPortInfo(port int) *PortInfo {
 	if info, ok := PortDatabase[port]; ok {

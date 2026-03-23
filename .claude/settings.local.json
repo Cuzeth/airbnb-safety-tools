@@ -11,7 +11,11 @@
       "Bash(go mod:*)",
       "Bash(go get:*)",
       "Bash(go vet:*)",
-      "Bash(./safestay --version)"
+      "Bash(./safestay --version)",
+      "Bash(go version:*)",
+      "Bash(go test:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

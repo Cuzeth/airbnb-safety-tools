@@ -70,10 +70,79 @@ func (m *tableModel) MoveDown() {
 	}
 }
 
-func (m *tableModel) clampScroll() {
-	if m.height <= 0 {
+func (m *tableModel) MoveTop() {
+	if len(m.devices) == 0 {
 		return
 	}
+	m.cursor = 0
+	m.clampScroll()
+}
+
+func (m *tableModel) MoveBottom() {
+	if len(m.devices) == 0 {
+		return
+	}
+	m.cursor = len(m.devices) - 1
+	m.clampScroll()
+}
+
+func (m *tableModel) MovePageUp() {
+	if len(m.devices) == 0 {
+		return
+	}
+	step := m.height
+	if step < 1 {
+		step = 1
+	}
+	m.cursor -= step
+	if m.cursor < 0 {
+		m.cursor = 0
+	}
+	m.clampScroll()
+}
+
+func (m *tableModel) MovePageDown() {
+	if len(m.devices) == 0 {
+		return
+	}
+	step := m.height
+	if step < 1 {
+		step = 1
+	}
+	m.cursor += step
+	if m.cursor >= len(m.devices) {
+		m.cursor = len(m.devices) - 1
+	}
+	m.clampScroll()
+}
+
+func (m *tableModel) clampScroll() {
+	if len(m.devices) == 0 {
+		m.cursor = 0
+		m.offset = 0
+		return
+	}
+
+	if m.cursor < 0 {
+		m.cursor = 0
+	}
+	if m.cursor >= len(m.devices) {
+		m.cursor = len(m.devices) - 1
+	}
+
+	if m.height <= 0 {
+		m.offset = 0
+		return
+	}
+
+	maxOffset := len(m.devices) - m.height
+	if maxOffset < 0 {
+		maxOffset = 0
+	}
+	if m.offset > maxOffset {
+		m.offset = maxOffset
+	}
+
 	if m.cursor < m.offset {
 		m.offset = m.cursor
 	}
@@ -84,7 +153,7 @@ func (m *tableModel) clampScroll() {
 
 // View renders the table as a fixed-width, fixed-height block of text.
 // Output is exactly (m.height + 1) lines tall and m.width chars wide.
-func (m *tableModel) View() string {
+func (m *tableModel) View(emptyMessage string) string {
 	if m.width <= 0 || m.height <= 0 {
 		return ""
 	}
@@ -104,6 +173,14 @@ func (m *tableModel) View() string {
 
 	var rows []string
 	rows = append(rows, hdr)
+
+	if len(m.devices) == 0 {
+		rows = append(rows, m.renderEmptyRow(emptyMessage))
+		for len(rows) < m.height+1 {
+			rows = append(rows, emptyRow)
+		}
+		return strings.Join(rows, "\n")
+	}
 
 	// Visible data rows
 	visibleEnd := m.offset + m.height
@@ -127,7 +204,7 @@ func (m *tableModel) View() string {
 
 		row := m.renderDataRow(
 			riskW, ipW, macW, vendorW, catW, portsW,
-			risk, d.IP, d.MAC, truncate(d.Vendor, vendorW), string(d.Category), ports,
+			risk, d.IP, d.MAC, truncateWidth(d.Vendor, vendorW), string(d.Category), ports,
 			style, isSelected,
 		)
 		rows = append(rows, row)
@@ -143,19 +220,32 @@ func (m *tableModel) View() string {
 
 // columnWidths computes column widths that sum to m.width (including gaps).
 func (m *tableModel) columnWidths() (int, int, int, int, int, int) {
-	riskW := 10
-	ipW := 16
-	macW := 18
-	catW := 14
+	riskW := 8
+	ipW := 15
+	macW := 17
+	catW := 12
+	if m.width >= 95 {
+		riskW = 10
+		ipW = 16
+		macW = 18
+		catW = 14
+	}
 	gaps := 5 // one space between each of the 6 columns
 
 	fixed := riskW + ipW + macW + catW + gaps
 	remaining := m.width - fixed
-	if remaining < 10 {
-		remaining = 10
+	if remaining < 12 {
+		remaining = 12
 	}
 	vendorW := remaining * 55 / 100
+	if vendorW < 6 {
+		vendorW = 6
+	}
 	portsW := remaining - vendorW
+	if portsW < 5 {
+		portsW = 5
+		vendorW = remaining - portsW
+	}
 
 	return riskW, ipW, macW, vendorW, catW, portsW
 }
@@ -168,7 +258,7 @@ func (m *tableModel) renderFixedRow(riskW, ipW, macW, vendorW, catW, portsW int,
 		padRight(vendor, vendorW) + " " +
 		padRight(category, catW) + " " +
 		padRight(ports, portsW)
-	return style.Width(m.width).MaxWidth(m.width).Render(content)
+	return renderSizedLine(style, m.width, content)
 }
 
 // renderDataRow renders a data row. The risk cell gets its own colored badge;
@@ -198,6 +288,19 @@ func (m *tableModel) renderDataRow(riskW, ipW, macW, vendorW, catW, portsW int, 
 		line += strings.Repeat(" ", m.width-vis)
 	}
 	return line
+}
+
+func (m *tableModel) renderEmptyRow(message string) string {
+	if message == "" {
+		message = "Press s to scan the local network"
+	}
+
+	msg := DimStyle.Render(truncateWidth(message, m.width-2))
+	return lipgloss.NewStyle().
+		Width(m.width).
+		MaxWidth(m.width).
+		Align(lipgloss.Center).
+		Render(msg)
 }
 
 func renderRiskCell(risk string, width int) string {
@@ -242,13 +345,13 @@ func portsPlain(device *model.Device) string {
 }
 
 func padRight(s string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+
+	s = truncateWidth(s, width)
 	vis := lipgloss.Width(s)
 	if vis >= width {
-		// Truncate to fit
-		runes := []rune(s)
-		if len(runes) > width && width > 1 {
-			return string(runes[:width-1]) + "\u2026"
-		}
 		return s
 	}
 	return s + strings.Repeat(" ", width-vis)
@@ -263,14 +366,4 @@ func padCenter(s string, width int) string {
 	left := total / 2
 	right := total - left
 	return strings.Repeat(" ", left) + s + strings.Repeat(" ", right)
-}
-
-func truncate(text string, length int) string {
-	if len(text) <= length {
-		return text
-	}
-	if length <= 1 {
-		return "\u2026"
-	}
-	return text[:length-1] + "\u2026"
 }

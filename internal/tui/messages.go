@@ -17,6 +17,11 @@ type ScanStatusMsg struct {
 	Text string
 }
 
+// NoDevicesMsg is sent when discovery succeeds but returns no devices.
+type NoDevicesMsg struct {
+	Reason string
+}
+
 // ScanFinishedMsg is sent when all scanning is complete.
 type ScanFinishedMsg struct {
 	Total  int

@@ -32,7 +32,10 @@ func main() {
 			fmt.Println("  s          Scan network")
 			fmt.Println("  o          Open selected device in browser")
 			fmt.Println("  1-9        Open specific numbered port")
-			fmt.Println("  j/k        Navigate device list")
+			fmt.Println("  j/k        Move within focused pane")
+			fmt.Println("  pgup/pgdn  Page through table or detail panel")
+			fmt.Println("  g/G        Jump to top/bottom")
+			fmt.Println("  tab        Toggle table/detail focus")
 			fmt.Println("  q          Quit")
 			os.Exit(0)
 		}

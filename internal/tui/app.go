@@ -28,7 +28,7 @@ const (
 type focusPane int
 
 const (
-	focusTable  focusPane = iota
+	focusTable focusPane = iota
 	focusDetail
 )
 
@@ -37,8 +37,10 @@ type AppModel struct {
 	table        tableModel
 	detailVP     viewport.Model
 	detailDevice *model.Device
+	detailPaneW  int
 	detailWidth  int
 	detailHeight int
+	compact      bool
 	focus        focusPane
 
 	statusBar    string
@@ -50,7 +52,16 @@ type AppModel struct {
 	height       int
 	version      string
 	notification string
+	emptyMessage string
+	statusCounts *scanCounts
 	program      *tea.Program
+}
+
+type scanCounts struct {
+	Total  int
+	High   int
+	Medium int
+	Low    int
 }
 
 // NewApp creates a new AppModel.
@@ -59,13 +70,14 @@ func NewApp(version string) AppModel {
 	banner := buildBanner(subnet)
 
 	return AppModel{
-		table:     newTableModel(),
-		focus:     focusTable,
-		statusBar: "Press s to scan  |  Devices: 0",
-		banner:    banner,
-		subnet:    subnet,
-		devices:   make(map[string]*model.Device),
-		version:   version,
+		table:        newTableModel(),
+		focus:        focusTable,
+		statusBar:    "Press s to scan  |  Devices: 0",
+		banner:       banner,
+		subnet:       subnet,
+		devices:      make(map[string]*model.Device),
+		version:      version,
+		emptyMessage: "Press s to scan the local network",
 	}
 }
 
@@ -108,14 +120,26 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case DevicesDiscoveredMsg:
 		m.table.Clear()
+		m.devices = make(map[string]*model.Device, len(msg.Devices))
+		m.emptyMessage = ""
 		for _, device := range msg.Devices {
 			fingerprint.LookupVendor(device)
 			m.devices[device.MAC] = device
 			m.table.AddDevice(device)
 		}
 		m.statusBar = fmt.Sprintf("Found %d devices. Port scanning...", len(msg.Devices))
+		m.statusCounts = nil
 		m.updateDetail()
 		m.startPortScans(msg.Devices)
+		return m, nil
+
+	case NoDevicesMsg:
+		m.scanning = false
+		m.resetResults()
+		m.emptyMessage = msg.Reason
+		m.statusBar = "No devices found. The network may use client isolation."
+		m.statusCounts = nil
+		m.notification = msg.Reason
 		return m, nil
 
 	case DeviceScanCompleteMsg:
@@ -126,17 +150,24 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case ScanStatusMsg:
 		m.statusBar = msg.Text
+		m.statusCounts = nil
 		return m, nil
 
 	case ScanFinishedMsg:
 		m.scanning = false
 		m.statusBar = fmt.Sprintf(
-			"Scan complete  |  Devices: %d  |  %s  |  %s  |  %s",
+			"Scan complete  |  Devices: %d  |  HIGH: %d  |  MEDIUM: %d  |  LOW: %d",
 			msg.Total,
-			HighRiskText.Render(fmt.Sprintf("HIGH: %d", msg.High)),
-			MediumRiskText.Render(fmt.Sprintf("MEDIUM: %d", msg.Medium)),
-			LowRiskText.Render(fmt.Sprintf("LOW: %d", msg.Low)),
+			msg.High,
+			msg.Medium,
+			msg.Low,
 		)
+		m.statusCounts = &scanCounts{
+			Total:  msg.Total,
+			High:   msg.High,
+			Medium: msg.Medium,
+			Low:    msg.Low,
+		}
 		if msg.High > 0 {
 			m.notification = HighRiskText.Render(fmt.Sprintf("Found %d HIGH risk device(s)!", msg.High))
 		}
@@ -144,7 +175,10 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case ErrorMsg:
 		m.scanning = false
-		m.statusBar = HighRiskText.Render(fmt.Sprintf("Error: %v", msg.Err))
+		m.resetResults()
+		m.emptyMessage = fmt.Sprintf("Scan failed: %v", msg.Err)
+		m.statusBar = fmt.Sprintf("Error: %v", msg.Err)
+		m.statusCounts = nil
 		return m, nil
 	}
 
@@ -161,14 +195,11 @@ func (m *AppModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "s":
 		if m.scanning || m.subnet == "" {
 			if m.subnet == "" {
-				m.statusBar = HighRiskText.Render("No network detected!")
+				m.statusBar = "No network detected!"
 			}
 			return m, nil
 		}
-		m.scanning = true
-		m.notification = ""
-		m.statusBar = fmt.Sprintf("Discovering devices on %s...", m.subnet)
-		return m, m.startDiscovery()
+		return m, m.beginScan()
 	case "o":
 		m.openPort(0)
 		return m, nil
@@ -195,6 +226,18 @@ func (m *AppModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "down", "j":
 			m.table.MoveDown()
 			m.updateDetail()
+		case "pgup":
+			m.table.MovePageUp()
+			m.updateDetail()
+		case "pgdown":
+			m.table.MovePageDown()
+			m.updateDetail()
+		case "home", "g":
+			m.table.MoveTop()
+			m.updateDetail()
+		case "end", "G":
+			m.table.MoveBottom()
+			m.updateDetail()
 		}
 	} else {
 		// Detail panel focused — scroll it
@@ -217,6 +260,24 @@ func (m *AppModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m *AppModel) beginScan() tea.Cmd {
+	m.scanning = true
+	m.notification = ""
+	m.emptyMessage = fmt.Sprintf("Discovering devices on %s...", m.subnet)
+	m.statusBar = fmt.Sprintf("Discovering devices on %s...", m.subnet)
+	m.statusCounts = nil
+	m.resetResults()
+	return m.startDiscovery()
+}
+
+func (m *AppModel) resetResults() {
+	m.table.Clear()
+	m.devices = make(map[string]*model.Device)
+	m.detailDevice = nil
+	m.detailVP.SetContent("")
+	m.detailVP.GotoTop()
+}
+
 func (m *AppModel) openPort(index int) {
 	sel := m.table.SelectedDevice()
 	if sel == nil {
@@ -233,11 +294,14 @@ func (m *AppModel) openPort(index int) {
 		targetIdx = index - 1
 	}
 	if targetIdx >= len(openable) {
-		m.notification = fmt.Sprintf("No port [%d]", index)
+		m.notification = fmt.Sprintf("No port [%d] on %s", index, sel.IP)
 		return
 	}
 	url := openable[targetIdx].URL
-	browser.OpenURL(url)
+	if err := browser.OpenURL(url); err != nil {
+		m.notification = fmt.Sprintf("Could not open %s: %v", url, err)
+		return
+	}
 	m.notification = fmt.Sprintf("Opening %s", url)
 }
 
@@ -249,7 +313,7 @@ func (m *AppModel) startDiscovery() tea.Cmd {
 			return ErrorMsg{Err: err}
 		}
 		if len(devices) == 0 {
-			return ErrorMsg{Err: fmt.Errorf("no devices found — network may use client isolation")}
+			return NoDevicesMsg{Reason: "No devices found. The network may use AP isolation or client isolation."}
 		}
 		return DevicesDiscoveredMsg{Devices: devices}
 	}
@@ -263,26 +327,25 @@ func (m *AppModel) startPortScans(devices []*model.Device) {
 
 	go func() {
 		total := len(devices)
+		high, medium := 0, 0
 		for i, d := range devices {
 			p.Send(ScanStatusMsg{
 				Text: fmt.Sprintf("Port scanning %d/%d: %s...", i+1, total, d.IP),
 			})
 
-			d.OpenPorts = scan.ScanPorts(d.IP, nil)
-			fingerprint.FingerprintDevice(d)
-
-			p.Send(DeviceScanCompleteMsg{Device: d})
-		}
-
-		high, medium := 0, 0
-		for _, d := range devices {
-			switch d.RiskLevel {
+			scanned := d.Clone()
+			scanned.OpenPorts = scan.ScanPorts(scanned.IP, nil)
+			fingerprint.FingerprintDevice(scanned)
+			switch scanned.RiskLevel {
 			case model.RiskHigh:
 				high++
 			case model.RiskMedium:
 				medium++
 			}
+
+			p.Send(DeviceScanCompleteMsg{Device: scanned})
 		}
+
 		p.Send(ScanFinishedMsg{
 			Total:  total,
 			High:   high,
@@ -295,6 +358,9 @@ func (m *AppModel) startPortScans(devices []*model.Device) {
 func (m *AppModel) updateDetail() {
 	sel := m.table.SelectedDevice()
 	if sel == nil {
+		m.detailDevice = nil
+		m.detailVP.SetContent("")
+		m.detailVP.GotoTop()
 		return
 	}
 	if m.detailDevice == nil || m.detailDevice.MAC != sel.MAC {
@@ -315,42 +381,30 @@ func (m *AppModel) recalcLayout() {
 		mainHeight = 3
 	}
 
-	// DetailPanelStyle has: BorderLeft (1 char) + Padding(1, 2) = 1 border + 2 left pad + 2 right pad = 5 extra cols
-	// and vertical padding: 1 top + 1 bottom = 2 extra rows
-	const detailBorderPad = 5 // horizontal: 1 border + 2+2 padding
-	const detailVertPad = 2   // vertical: 1+1 padding
+	detailFrameW := DetailPanelStyle.GetHorizontalFrameSize()
+	detailFrameH := DetailPanelStyle.GetVerticalFrameSize()
+	const minTableWidth = 52
+	const minDetailWidth = 34
 
-	// Budget for the detail panel's outer width (border + padding + content)
-	detailOuter := m.width / 4
-	if detailOuter < 32 {
-		detailOuter = 32
-	}
-	if detailOuter > m.width-40 {
-		detailOuter = m.width - 40
-	}
-	if detailOuter < 20 {
-		detailOuter = 20
+	m.compact = m.width < (minTableWidth + minDetailWidth)
+	if m.compact {
+		m.detailPaneW = m.width
+		m.table.SetSize(m.width, mainHeight-1)
+	} else {
+		detailOuter := clampInt(m.width/3, minDetailWidth, m.width-minTableWidth)
+		m.detailPaneW = detailOuter
+		m.table.SetSize(m.width-detailOuter, mainHeight-1)
 	}
 
-	// Inner content width = outer budget minus border+padding
-	m.detailWidth = detailOuter - detailBorderPad
+	m.detailWidth = m.detailPaneW - detailFrameW
 	if m.detailWidth < 15 {
 		m.detailWidth = 15
 	}
 	m.detailHeight = mainHeight
 
-	// Table gets the remaining width
-	tableWidth := m.width - detailOuter
-	if tableWidth < 40 {
-		tableWidth = 40
-	}
-
-	// Table height = mainHeight minus 1 for header row
-	m.table.SetSize(tableWidth, mainHeight-1)
-
 	// Viewport dimensions = inner content area
 	m.detailVP.Width = m.detailWidth
-	m.detailVP.Height = mainHeight - detailVertPad
+	m.detailVP.Height = mainHeight - detailFrameH
 	if m.detailVP.Height < 1 {
 		m.detailVP.Height = 1
 	}
@@ -367,66 +421,97 @@ func (m *AppModel) View() string {
 	}
 
 	// ── Header ──
-	header := HeaderStyle.Width(m.width).Render("SafeStay Scanner")
+	header := renderSizedLine(HeaderStyle, m.width, "SafeStay Scanner")
 
 	// ── Banner ──
 	bannerText := m.banner
 	if m.notification != "" {
 		bannerText += "  |  " + m.notification
 	}
-	bannerLine := BannerStyle.Width(m.width).Render(bannerText)
+	bannerLine := renderSizedLine(BannerStyle, m.width, truncateWidth(bannerText, m.width-BannerStyle.GetHorizontalFrameSize()))
 
 	// ── Table (left) ──
-	tableView := m.table.View()
+	tableView := m.table.View(m.emptyMessage)
 
 	// ── Detail (right) ──
 	var detailContent string
 	if m.detailDevice != nil {
 		detailContent = m.detailVP.View()
-
-		// Add scroll indicator if content overflows
-		pct := m.detailVP.ScrollPercent()
-		if pct < 1.0 && m.detailVP.TotalLineCount() > m.detailVP.Height {
-			indicator := DimStyle.Render(fmt.Sprintf(" %.0f%%", pct*100))
-			if m.focus == focusDetail {
-				indicator = BoldCyanStyle.Render(fmt.Sprintf(" %.0f%%", pct*100))
-			}
-			detailContent += "\n" + indicator
-		}
 	} else {
-		detailContent = DimStyle.Render("Select a device to view details")
+		title := "DEVICE DETAILS"
+		body := m.emptyMessage
+		if body == "" {
+			body = "Select a device to view details."
+		}
+		detailContent = renderDetailPlaceholder(m.detailWidth, title, body)
 	}
 
 	// Style the detail panel — highlight border when focused.
-	// IMPORTANT: lipgloss .Width() sets the CONTENT width. The border and padding
-	// are added outside of that. So we pass m.detailWidth (the inner content width)
-	// and the total rendered width will be m.detailWidth + 5 (border+padding).
 	dpStyle := DetailPanelStyle
 	if m.focus == focusDetail {
-		dpStyle = dpStyle.BorderForeground(lipgloss.Color("6"))
+		dpStyle = dpStyle.BorderForeground(sky400)
 	}
 
-	detailPanel := dpStyle.
-		Width(m.detailWidth).
-		Height(m.detailHeight - 2). // content height (padding adds 2)
-		Render(detailContent)
+	detailPanel := renderSizedBlock(dpStyle, m.detailPaneW, m.detailHeight, detailContent)
 
-	mainContent := lipgloss.JoinHorizontal(lipgloss.Top, tableView, detailPanel)
+	mainContent := tableView
+	if m.compact {
+		if m.focus == focusDetail {
+			mainContent = detailPanel
+		}
+	} else {
+		mainContent = lipgloss.JoinHorizontal(lipgloss.Top, tableView, detailPanel)
+	}
 	mainContent = clampHeight(mainContent, m.height-chromeLines)
 
 	// ── Status bar ──
-	status := StatusBarStyle.Width(m.width).Render(m.statusBar)
+	status := m.renderStatusBar()
 
 	// ── Help ──
 	var helpText string
 	if m.focus == focusDetail {
-		helpText = "tab table  |  j/k scroll  |  g/G top/bottom  |  s scan  |  q quit"
+		helpText = "tab table  |  j/k scroll  |  pgup/pgdn page  |  g/G top/bottom  |  s scan  |  q quit"
 	} else {
-		helpText = "s scan  |  o open  |  1-9 port  |  j/k navigate  |  tab details  |  q quit"
+		helpText = "s scan  |  o open  |  1-9 port  |  j/k navigate  |  pgup/pgdn page  |  tab details  |  q quit"
 	}
-	help := HelpStyle.Width(m.width).Render(helpText)
+	help := renderSizedLine(HelpStyle, m.width, truncateWidth(helpText, m.width-HelpStyle.GetHorizontalFrameSize()))
 
 	return header + "\n" + bannerLine + "\n" + mainContent + "\n" + status + "\n" + help
+}
+
+func (m *AppModel) renderStatusBar() string {
+	if m.statusCounts == nil {
+		return renderSizedLine(StatusBarStyle, m.width, truncateWidth(m.statusBar, m.width-StatusBarStyle.GetHorizontalFrameSize()))
+	}
+
+	plain := fmt.Sprintf(
+		" Scan complete  |  Devices: %d  |  HIGH: %d  |  MEDIUM: %d  |  LOW: %d ",
+		m.statusCounts.Total,
+		m.statusCounts.High,
+		m.statusCounts.Medium,
+		m.statusCounts.Low,
+	)
+	if visibleWidth(plain) > m.width {
+		return renderSizedLine(StatusBarStyle, m.width, truncateWidth(plain, m.width-StatusBarStyle.GetHorizontalFrameSize()))
+	}
+
+	line := strings.Join([]string{
+		StatusBarBaseStyle.Render(" Scan complete  |  Devices: "),
+		StatusBarBaseStyle.Render(fmt.Sprintf("%d", m.statusCounts.Total)),
+		StatusBarBaseStyle.Render("  |  "),
+		StatusBarHighText.Render(fmt.Sprintf("HIGH: %d", m.statusCounts.High)),
+		StatusBarBaseStyle.Render("  |  "),
+		StatusBarMediumText.Render(fmt.Sprintf("MEDIUM: %d", m.statusCounts.Medium)),
+		StatusBarBaseStyle.Render("  |  "),
+		StatusBarLowText.Render(fmt.Sprintf("LOW: %d", m.statusCounts.Low)),
+		StatusBarBaseStyle.Render(" "),
+	}, "")
+
+	if padding := m.width - visibleWidth(line); padding > 0 {
+		line += StatusBarBaseStyle.Render(strings.Repeat(" ", padding))
+	}
+
+	return line
 }
 
 func clampHeight(s string, maxLines int) string {
