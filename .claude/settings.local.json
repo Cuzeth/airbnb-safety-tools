@@ -6,7 +6,12 @@
       "Bash(python3 -m pip install -e .)",
       "Bash(python3 -c \"from scanner.app import SafeStayApp; print\\(''All imports OK''\\)\")",
       "Bash(nmap --version)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(go build:*)",
+      "Bash(go mod:*)",
+      "Bash(go get:*)",
+      "Bash(go vet:*)",
+      "Bash(./safestay --version)"
     ]
   }
 }
