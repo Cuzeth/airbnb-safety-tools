@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cuz/safestay/internal/model"
+	"abdeen.dev/safestay/internal/model"
 )
 
 func testDevices() []*model.Device {

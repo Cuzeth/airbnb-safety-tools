@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cuz/safestay/internal/model"
+	"abdeen.dev/safestay/internal/model"
 )
 
 // ScanPorts performs a concurrent TCP connect scan on the given IP.

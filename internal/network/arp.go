@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cuz/safestay/internal/model"
+	"abdeen.dev/safestay/internal/model"
 )
 
 // ARPScan discovers devices by probing the subnet then reading the ARP cache.

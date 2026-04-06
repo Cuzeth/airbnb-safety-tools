@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cuz/safestay/internal/model"
-	"github.com/cuz/safestay/internal/oui"
+	"abdeen.dev/safestay/internal/model"
+	"abdeen.dev/safestay/internal/oui"
 )
 
 // chipsetVendors are vendor strings indicating a generic WiFi chipset (not a camera brand).

@@ -9,11 +9,11 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/pkg/browser"
 
-	"github.com/cuz/safestay/internal/fingerprint"
-	"github.com/cuz/safestay/internal/model"
-	"github.com/cuz/safestay/internal/network"
-	"github.com/cuz/safestay/internal/report"
-	"github.com/cuz/safestay/internal/scan"
+	"abdeen.dev/safestay/internal/fingerprint"
+	"abdeen.dev/safestay/internal/model"
+	"abdeen.dev/safestay/internal/network"
+	"abdeen.dev/safestay/internal/report"
+	"abdeen.dev/safestay/internal/scan"
 )
 
 // Fixed chrome heights (lines consumed by non-table UI).

@@ -6,7 +6,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/cuz/safestay/internal/model"
+	"abdeen.dev/safestay/internal/model"
 )
 
 // renderDetail builds the detail panel content as a plain string.

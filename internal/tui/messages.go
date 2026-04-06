@@ -1,6 +1,6 @@
 package tui
 
-import "github.com/cuz/safestay/internal/model"
+import "abdeen.dev/safestay/internal/model"
 
 // DevicesDiscoveredMsg is sent when device discovery completes.
 type DevicesDiscoveredMsg struct {

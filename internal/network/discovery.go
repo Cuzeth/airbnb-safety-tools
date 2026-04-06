@@ -1,7 +1,7 @@
 package network
 
 import (
-	"github.com/cuz/safestay/internal/model"
+	"abdeen.dev/safestay/internal/model"
 )
 
 // DiscoverDevices finds devices on the network using the best available method.

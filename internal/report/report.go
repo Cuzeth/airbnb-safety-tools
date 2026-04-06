@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cuz/safestay/internal/model"
+	"abdeen.dev/safestay/internal/model"
 )
 
 // ── HTML template data types ────────────────────────────────────────

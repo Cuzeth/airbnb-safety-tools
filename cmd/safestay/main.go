@@ -6,7 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/cuz/safestay/internal/tui"
+	"abdeen.dev/safestay/internal/tui"
 )
 
 var version = "dev"
