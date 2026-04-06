@@ -30,6 +30,7 @@ func main() {
 			fmt.Println()
 			fmt.Println("Keyboard shortcuts:")
 			fmt.Println("  s          Scan network")
+			fmt.Println("  e          Export report (HTML + JSON)")
 			fmt.Println("  o          Open selected device in browser")
 			fmt.Println("  1-9        Open specific numbered port")
 			fmt.Println("  j/k        Move within focused pane")

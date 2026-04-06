@@ -5,6 +5,7 @@ package tui
 
 // Keyboard shortcuts:
 //   s          - Start network scan
+//   e          - Export scan results as HTML report
 //   o          - Open first browser-openable port
 //   1-9        - Open specific numbered port
 //   j / down   - Move down / scroll down in the focused pane

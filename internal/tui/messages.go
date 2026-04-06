@@ -34,3 +34,13 @@ type ScanFinishedMsg struct {
 type ErrorMsg struct {
 	Err error
 }
+
+// ReportSavedMsg is sent when an HTML report has been written to disk.
+type ReportSavedMsg struct {
+	Path string
+}
+
+// ReportErrorMsg is sent when report generation fails.
+type ReportErrorMsg struct {
+	Err error
+}

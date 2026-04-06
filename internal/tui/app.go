@@ -12,6 +12,7 @@ import (
 	"github.com/cuz/safestay/internal/fingerprint"
 	"github.com/cuz/safestay/internal/model"
 	"github.com/cuz/safestay/internal/network"
+	"github.com/cuz/safestay/internal/report"
 	"github.com/cuz/safestay/internal/scan"
 )
 
@@ -180,6 +181,14 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.statusBar = fmt.Sprintf("Error: %v", msg.Err)
 		m.statusCounts = nil
 		return m, nil
+
+	case ReportSavedMsg:
+		m.notification = fmt.Sprintf("Report saved: %s", msg.Path)
+		return m, nil
+
+	case ReportErrorMsg:
+		m.notification = fmt.Sprintf("Export failed: %v", msg.Err)
+		return m, nil
 	}
 
 	return m, nil
@@ -200,6 +209,16 @@ func (m *AppModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		return m, m.beginScan()
+	case "e":
+		if len(m.devices) == 0 {
+			m.notification = "No scan results to export"
+			return m, nil
+		}
+		if m.scanning {
+			m.notification = "Wait for scan to complete"
+			return m, nil
+		}
+		return m, m.exportReport()
 	case "o":
 		m.openPort(0)
 		return m, nil
@@ -303,6 +322,23 @@ func (m *AppModel) openPort(index int) {
 		return
 	}
 	m.notification = fmt.Sprintf("Opening %s", url)
+}
+
+func (m *AppModel) exportReport() tea.Cmd {
+	devices := make([]*model.Device, 0, len(m.devices))
+	for _, d := range m.devices {
+		devices = append(devices, d)
+	}
+	subnet := m.subnet
+	version := m.version
+
+	return func() tea.Msg {
+		path, err := report.Generate(devices, subnet, version)
+		if err != nil {
+			return ReportErrorMsg{Err: err}
+		}
+		return ReportSavedMsg{Path: path}
+	}
 }
 
 func (m *AppModel) startDiscovery() tea.Cmd {
@@ -472,7 +508,7 @@ func (m *AppModel) View() string {
 	if m.focus == focusDetail {
 		helpText = "tab table  |  j/k scroll  |  pgup/pgdn page  |  g/G top/bottom  |  s scan  |  q quit"
 	} else {
-		helpText = "s scan  |  o open  |  1-9 port  |  j/k navigate  |  pgup/pgdn page  |  tab details  |  q quit"
+		helpText = "s scan  |  e export  |  o open  |  1-9 port  |  j/k navigate  |  tab details  |  q quit"
 	}
 	help := renderSizedLine(HelpStyle, m.width, truncateWidth(helpText, m.width-HelpStyle.GetHorizontalFrameSize()))
 
