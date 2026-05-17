@@ -51,50 +51,53 @@ var PhysicalCheck = []Section{
 	},
 }
 
-// IfYouFoundSomething is the post-detection script. The goal is to remove the
-// "now what?" moment after a HIGH-risk finding or a physical discovery. Order
-// matters: do not confront the host first; preserve evidence and your
-// rebooking/refund eligibility instead.
+// IfYouFoundSomething summarises publicly-available guidance from Airbnb's
+// own help articles and widely-cited safety reporting. It is NOT advice from
+// the author of this software and should not be read that way — the framing
+// is deliberately third-person ("Airbnb's policy states X") rather than
+// imperative ("do X"). Personal safety decisions are not addressed here at
+// all; those belong with local authorities and licensed counsel, not a CLI
+// tool. See LegalNotice below.
 var IfYouFoundSomething = []Section{
 	{
-		Title: "1. Do not confront the host",
+		Title: "1. The host (per published safety reporting)",
 		Items: []string{
-			"You are in their property, possibly far from home. Stay calm",
-			"Do not unplug, cover, or move the device beyond what you need for one clear photo",
-			"Do not message the host with accusations from inside the unit",
+			"Widely-cited safety articles describe on-site confrontation as a common source of escalation, particularly for travellers far from home.",
+			"Published accounts also describe unplugging or moving suspected devices as a frequent cause of lost evidence — one photo of the device in place is typically preserved first.",
+			"Accusatory messaging from inside the unit is commonly described as counter-productive in the same accounts.",
 		},
 	},
 	{
-		Title: "2. Document it before you do anything else",
+		Title: "2. Documentation (per Airbnb's resolution flow)",
 		Items: []string{
-			"Take timestamped photos and a short video showing the device's location in the room",
-			"Capture the SafeStay report (press 'e' to export an HTML report you can attach)",
-			"Note the listing URL, host name, and the exact check-in and check-out times",
+			"Airbnb's resolution submissions typically request timestamped photos and short video showing the device's location.",
+			"SafeStay can export an HTML report (press 'e') that can be attached as one piece of evidence among others.",
+			"The listing URL, host name, and exact check-in/check-out times are commonly requested.",
 		},
 	},
 	{
-		Title: "3. Leave the unit if you feel unsafe, then call the police",
+		Title: "3. Local authorities (per Airbnb's guidance)",
 		Items: []string{
-			"Per Airbnb's guidance, call local police before contacting Airbnb support",
-			"Get a report number — Airbnb's resolution team will ask for it",
-			"If you are in another country, search for the local non-emergency police line, not 911",
+			"Airbnb's published guidance directs guests to contact local police before contacting Airbnb support.",
+			"Police reports typically generate a reference number; Airbnb's resolution team commonly asks for it.",
+			"Outside one's home country, the non-emergency police line varies by city — local search results are usually more accurate than 911.",
 		},
 	},
 	{
-		Title: "4. Report to Airbnb within 72 hours",
+		Title: "4. Airbnb's resolution centre",
 		Items: []string{
-			"Open the Airbnb Resolution Center: https://www.airbnb.com/help/article/3061",
-			"Hidden cameras anywhere inside a listing have been banned by Airbnb since April 2024",
-			"Reporting within 72 hours preserves your eligibility for a full or partial refund and rebooking",
-			"Attach: your photos, the police report number, and the SafeStay HTML report",
+			"Airbnb Resolution Center: https://www.airbnb.com/help/article/3061",
+			"Per Airbnb's policy, hidden cameras anywhere inside a listing have been prohibited since April 2024.",
+			"Per Airbnb's published terms, reporting within 72 hours of discovery is associated with eligibility for refund and rebooking.",
+			"Typical submission contents per Airbnb's flow: photos, police report number, any scan report or evidence.",
 		},
 	},
 	{
-		Title: "5. After the stay",
+		Title: "5. After the stay (per security reporting)",
 		Items: []string{
-			"Check your devices for unfamiliar pairings — some hostile setups pair over Bluetooth",
-			"Consider posting a review only after Airbnb's investigation closes (their TOS limits review edits)",
-			"If a crime occurred, your police report — not just the Airbnb report — is what carries forward",
+			"Security-research articles note that some hostile setups pair over Bluetooth, and that a post-stay device check is occasionally recommended.",
+			"Airbnb's terms place limits on review edits once an investigation closes; published guidance often suggests waiting on a review until the platform's process completes.",
+			"In jurisdictions where a crime is alleged, the police report rather than the platform report is typically what is referenced in subsequent legal proceedings.",
 		},
 	},
 }

@@ -586,7 +586,7 @@ h4{font-size:.8rem;font-weight:700;color:#475569;margin:1.25rem 0 .5rem;text-tra
   {{- end}}
 
   <h2>If You Found Something</h2>
-  <p style="margin-bottom:1rem;color:#475569">The order matters: document first, then escalate. Do not confront the host on-site.</p>
+  <p style="margin-bottom:1rem;color:#475569">The list below summarises Airbnb's own published guidance and widely-cited safety reporting. It is <strong>not advice from this software's author</strong>. Personal-safety decisions are yours alone — for those, contact local authorities and a licensed attorney in the relevant jurisdiction.</p>
   {{range .WhatToDo -}}
   <div class="guide-section">
     <h3>{{.Title}}</h3>

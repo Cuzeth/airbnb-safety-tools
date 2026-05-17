@@ -30,8 +30,10 @@ func renderGuide(width int) string {
 	b.WriteString("\n")
 	writeGuideHeading(&b, "If You Found Something")
 	b.WriteString(DimStyle.Render(wrapPlain(
-		"You're in someone else's property. Document, then escalate — don't "+
-			"confront the host on-site.", width)))
+		"The list below summarises Airbnb's own published guidance and widely-cited "+
+			"safety reporting. It is not advice from this software's author. Personal "+
+			"safety decisions are yours alone — for those, contact local authorities "+
+			"and a licensed attorney in the relevant jurisdiction.", width)))
 	b.WriteString("\n\n")
 	writeSections(&b, guide.IfYouFoundSomething, width)
 

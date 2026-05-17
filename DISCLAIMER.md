@@ -57,4 +57,4 @@ Mentioning a vendor name (e.g. Hikvision, Dahua, Wyze, Ring, Tuya) in a detectio
 
 ## "Use at your own risk" is not a metaphor
 
-If, after reading this notice, you have any doubt about whether you should run this software in a given situation — **do not run it.** Leave the property if you feel unsafe. Call local police if you believe a crime has been or is being committed. Talk to a licensed attorney in the relevant jurisdiction. The author cannot help you and accepts no responsibility for your decisions.
+If, after reading this notice, you have any doubt about whether you should run this software in a given situation — **do not run it.** Personal-safety decisions, decisions about whether to contact law enforcement, and decisions about engaging legal counsel are yours alone, based on your jurisdiction and circumstances. The author cannot help you with those decisions and accepts no responsibility for them.
