@@ -2,12 +2,14 @@ package tui
 
 // Key bindings are handled directly in app.go handleKey().
 // This file is kept for documentation and potential future help component.
-
+//
 // Keyboard shortcuts:
 //   s          - Start network scan
 //   e          - Export scan results as HTML report
 //   o          - Open first browser-openable port
 //   1-9        - Open specific numbered port
+//   ?          - Open the safety guide (physical check + what to do)
+//   esc        - Close the safety guide
 //   j / down   - Move down / scroll down in the focused pane
 //   k / up     - Move up / scroll up in the focused pane
 //   pgup/pgdn  - Page through the focused pane

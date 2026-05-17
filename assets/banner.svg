@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" role="img" aria-label="SafeStay — Hidden Camera Scanner for Airbnbs and rentals">
+  <title>SafeStay — Hidden Camera Scanner</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0F172A"/>
+      <stop offset="0.55" stop-color="#1E293B"/>
+      <stop offset="1" stop-color="#0B1220"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.78" cy="0.5" r="0.55">
+      <stop offset="0" stop-color="#38BDF8" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#38BDF8" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="lensGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#F87171" stop-opacity="0.6"/>
+      <stop offset="1" stop-color="#F87171" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0 L0 0 0 40" fill="none" stroke="#1E3A5F" stroke-opacity="0.35" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="340" fill="url(#bg)"/>
+  <rect width="1200" height="340" fill="url(#grid)"/>
+  <rect width="1200" height="340" fill="url(#glow)"/>
+
+  <!-- Top accent bar -->
+  <rect x="0" y="0" width="1200" height="3" fill="#38BDF8"/>
+
+  <!-- Scan visualization (right side) -->
+  <g transform="translate(880, 170)">
+    <!-- Concentric scan rings -->
+    <circle cx="0" cy="0" r="130" fill="none" stroke="#38BDF8" stroke-opacity="0.08" stroke-width="1"/>
+    <circle cx="0" cy="0" r="100" fill="none" stroke="#38BDF8" stroke-opacity="0.16" stroke-width="1"/>
+    <circle cx="0" cy="0" r="70" fill="none" stroke="#38BDF8" stroke-opacity="0.25" stroke-width="1.2"/>
+    <circle cx="0" cy="0" r="42" fill="none" stroke="#38BDF8" stroke-opacity="0.4" stroke-width="1.5"/>
+
+    <!-- Sweep arc -->
+    <path d="M 0 0 L 130 0 A 130 130 0 0 0 92 -92 Z" fill="#38BDF8" fill-opacity="0.08"/>
+
+    <!-- Devices: low (green) -->
+    <circle cx="-46" cy="-32" r="5" fill="#4ADE80"/>
+    <circle cx="58" cy="44" r="5" fill="#4ADE80"/>
+    <circle cx="-72" cy="50" r="5" fill="#4ADE80"/>
+    <circle cx="14" cy="-78" r="5" fill="#4ADE80"/>
+
+    <!-- Devices: medium (amber) -->
+    <circle cx="84" cy="-18" r="5" fill="#FBBF24"/>
+    <circle cx="-90" cy="-12" r="5" fill="#FBBF24"/>
+
+    <!-- Device: HIGH (red, with glow) -->
+    <circle cx="62" cy="-58" r="22" fill="url(#lensGlow)"/>
+    <circle cx="62" cy="-58" r="7" fill="#F87171"/>
+    <circle cx="62" cy="-58" r="7" fill="none" stroke="#FCA5A5" stroke-width="1.5"/>
+
+    <!-- Center "you are here" marker -->
+    <circle cx="0" cy="0" r="4" fill="#F8FAFC"/>
+    <circle cx="0" cy="0" r="9" fill="none" stroke="#F8FAFC" stroke-opacity="0.4" stroke-width="1"/>
+  </g>
+
+  <!-- Eye / camera-lens icon (left of wordmark) -->
+  <g transform="translate(90, 130)">
+    <circle cx="32" cy="32" r="30" fill="none" stroke="#38BDF8" stroke-width="2.5"/>
+    <circle cx="32" cy="32" r="14" fill="none" stroke="#38BDF8" stroke-width="2"/>
+    <circle cx="32" cy="32" r="5" fill="#F87171"/>
+    <!-- Slash line indicating "detect / block" -->
+    <line x1="8" y1="56" x2="56" y2="8" stroke="#F87171" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- Wordmark + tagline -->
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+    <text x="180" y="170" font-size="84" font-weight="700" fill="#F8FAFC" letter-spacing="-2.5">SafeStay</text>
+    <text x="184" y="208" font-size="22" font-weight="600" fill="#38BDF8" letter-spacing="0.2">Hidden Camera Scanner</text>
+    <text x="184" y="236" font-size="16" font-weight="400" fill="#94A3B8">for Airbnbs, hotels &amp; short-term rentals</text>
+
+    <!-- Feature chips -->
+    <g transform="translate(184, 262)">
+      <rect x="0" y="0" width="156" height="26" rx="13" fill="#1E3A5F" stroke="#38BDF8" stroke-opacity="0.4"/>
+      <text x="78" y="18" text-anchor="middle" font-size="12" font-weight="600" fill="#BAE6FD" letter-spacing="0.5">SINGLE BINARY</text>
+
+      <rect x="168" y="0" width="200" height="26" rx="13" fill="#1E3A5F" stroke="#38BDF8" stroke-opacity="0.4"/>
+      <text x="268" y="18" text-anchor="middle" font-size="12" font-weight="600" fill="#BAE6FD" letter-spacing="0.5">ZERO DEPENDENCIES</text>
+
+      <rect x="380" y="0" width="180" height="26" rx="13" fill="#1E3A5F" stroke="#38BDF8" stroke-opacity="0.4"/>
+      <text x="470" y="18" text-anchor="middle" font-size="12" font-weight="600" fill="#BAE6FD" letter-spacing="0.5">PHYSICAL + NETWORK</text>
+    </g>
+  </g>
+
+  <!-- Status pills on the right (legend) -->
+  <g transform="translate(1040, 80)" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+    <rect x="0" y="0" width="120" height="28" rx="4" fill="#991B1B"/>
+    <text x="60" y="19" text-anchor="middle" font-size="13" font-weight="700" fill="#FEF2F2" letter-spacing="1">HIGH</text>
+
+    <rect x="0" y="36" width="120" height="28" rx="4" fill="#D97706"/>
+    <text x="60" y="55" text-anchor="middle" font-size="13" font-weight="700" fill="#1C1917" letter-spacing="1">MEDIUM</text>
+
+    <rect x="0" y="72" width="120" height="28" rx="4" fill="#166534"/>
+    <text x="60" y="91" text-anchor="middle" font-size="13" font-weight="700" fill="#F0FDF4" letter-spacing="1">LOW</text>
+  </g>
+
+  <!-- Bottom accent bar -->
+  <rect x="0" y="337" width="1200" height="3" fill="#38BDF8" fill-opacity="0.4"/>
+</svg>

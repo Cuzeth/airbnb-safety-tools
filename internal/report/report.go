@@ -10,22 +10,32 @@ import (
 	"strings"
 	"time"
 
+	"abdeen.dev/safestay/internal/guide"
 	"abdeen.dev/safestay/internal/model"
 )
 
 // ── HTML template data types ────────────────────────────────────────
 
 type reportData struct {
-	AppVersion string
-	ScanTime   string
-	ScanDate   string
-	Subnet     string
-	Summary    summaryData
-	Devices    []deviceData
-	Flagged    []deviceData
-	HasFlagged bool
-	HasHigh    bool
-	HighCount  int
+	AppVersion       string
+	ScanTime         string
+	ScanDate         string
+	Subnet           string
+	Reliability      string
+	IsolationWarning bool
+	HeadlineClass    string
+	HeadlineText     string
+	HeadlineSub      string
+	Summary          summaryData
+	Devices          []deviceData
+	Flagged          []deviceData
+	HasFlagged       bool
+	HasHigh          bool
+	HighCount        int
+	PhysicalCheck    []sectionData
+	WhatToDo         []sectionData
+	Limits           []string
+	LegalNotice      []string
 }
 
 type summaryData struct {
@@ -33,6 +43,11 @@ type summaryData struct {
 	High   int
 	Medium int
 	Low    int
+}
+
+type sectionData struct {
+	Title string
+	Items []string
 }
 
 type deviceData struct {
@@ -59,11 +74,12 @@ type portData struct {
 // ── JSON export types ───────────────────────────────────────────────
 
 type jsonReport struct {
-	Version  string       `json:"safestay_version"`
-	ScanTime string       `json:"scan_time"`
-	Network  string       `json:"network"`
-	Summary  jsonSummary  `json:"summary"`
-	Devices  []jsonDevice `json:"devices"`
+	Version     string       `json:"safestay_version"`
+	ScanTime    string       `json:"scan_time"`
+	Network     string       `json:"network"`
+	Reliability string       `json:"scan_reliability"`
+	Summary     jsonSummary  `json:"summary"`
+	Devices     []jsonDevice `json:"devices"`
 }
 
 type jsonSummary struct {
@@ -93,23 +109,30 @@ type jsonPort struct {
 // Generate creates an HTML report and companion JSON from scan results.
 // Returns the path to the generated HTML file.
 func Generate(devices []*model.Device, subnet, version string) (string, error) {
+	return GenerateWithReliability(devices, subnet, version, model.ReliabilityNormal)
+}
+
+// GenerateWithReliability creates the report and records whether the scan
+// was reliable. An isolated-network scan that returned "no high risk" is a
+// very different claim from a normal scan that returned the same result,
+// and the report needs to say so.
+func GenerateWithReliability(devices []*model.Device, subnet, version string, reliability model.ScanReliability) (string, error) {
 	now := time.Now()
 
-	data := buildReportData(devices, subnet, version, now)
+	data := buildReportData(devices, subnet, version, now, reliability)
 
 	htmlPath := fmt.Sprintf("safestay-report-%s.html", now.Format("2006-01-02-150405"))
 	if err := writeHTML(data, htmlPath); err != nil {
 		return "", fmt.Errorf("write HTML: %w", err)
 	}
 
-	// Best-effort JSON companion file.
 	jsonPath := strings.TrimSuffix(htmlPath, ".html") + ".json"
-	_ = writeJSON(data, devices, subnet, version, now, jsonPath)
+	_ = writeJSON(data, devices, subnet, version, now, reliability, jsonPath)
 
 	return htmlPath, nil
 }
 
-func buildReportData(devices []*model.Device, subnet, version string, now time.Time) reportData {
+func buildReportData(devices []*model.Device, subnet, version string, now time.Time, reliability model.ScanReliability) reportData {
 	sorted := sortDevices(devices)
 
 	var high, medium, low int
@@ -132,23 +155,68 @@ func buildReportData(devices []*model.Device, subnet, version string, now time.T
 		}
 	}
 
+	isolation := reliability == model.ReliabilityIsolated || reliability == model.ReliabilityPartial
+	headlineClass, headlineText, headlineSub := buildHeadline(high, isolation)
+
 	return reportData{
-		AppVersion: version,
-		ScanTime:   now.Format("January 2, 2006 at 3:04 PM MST"),
-		ScanDate:   now.Format("2006-01-02"),
-		Subnet:     subnet,
+		AppVersion:       version,
+		ScanTime:         now.Format("January 2, 2006 at 3:04 PM MST"),
+		ScanDate:         now.Format("2006-01-02"),
+		Subnet:           subnet,
+		Reliability:      string(reliability),
+		IsolationWarning: isolation,
+		HeadlineClass:    headlineClass,
+		HeadlineText:     headlineText,
+		HeadlineSub:      headlineSub,
 		Summary: summaryData{
 			Total:  len(sorted),
 			High:   high,
 			Medium: medium,
 			Low:    low,
 		},
-		Devices:    devs,
-		Flagged:    flagged,
-		HasFlagged: len(flagged) > 0,
-		HasHigh:    high > 0,
-		HighCount:  high,
+		Devices:       devs,
+		Flagged:       flagged,
+		HasFlagged:    len(flagged) > 0,
+		HasHigh:       high > 0,
+		HighCount:     high,
+		PhysicalCheck: convertSections(guide.PhysicalCheck),
+		WhatToDo:      convertSections(guide.IfYouFoundSomething),
+		Limits:        guide.Limits,
+		LegalNotice:   guide.LegalNotice,
 	}
+}
+
+// buildHeadline returns the screenshot-friendly hero card text. The two states
+// that share visual weight on purpose: "found X" and "scan was unreliable",
+// because a clean-looking report from an isolated network is the worst false
+// positive this tool can produce.
+func buildHeadline(highCount int, isolated bool) (class, text, sub string) {
+	switch {
+	case highCount > 0:
+		plural := ""
+		if highCount > 1 {
+			plural = "s"
+		}
+		return "headline-alert",
+			fmt.Sprintf("%d HIGH-risk device%s detected", highCount, plural),
+			"Review the flagged devices below, then follow the \"If You Found Something\" steps."
+	case isolated:
+		return "headline-warn",
+			"Scan was unreliable",
+			"This network appears to use AP / client isolation, so a clean result is not meaningful. Run the physical check below."
+	default:
+		return "headline-clear",
+			"No high-risk devices detected on this network",
+			"Always pair this result with the physical check below — network scanning cannot see 4G cameras, SD-card recorders, or devices on a separate VLAN."
+	}
+}
+
+func convertSections(sections []guide.Section) []sectionData {
+	out := make([]sectionData, 0, len(sections))
+	for _, s := range sections {
+		out = append(out, sectionData{Title: s.Title, Items: s.Items})
+	}
+	return out
 }
 
 func toDeviceData(d *model.Device) deviceData {
@@ -259,7 +327,7 @@ func writeHTML(data reportData, path string) error {
 	return tmpl.Execute(f, data)
 }
 
-func writeJSON(data reportData, devices []*model.Device, subnet, version string, now time.Time, path string) error {
+func writeJSON(data reportData, devices []*model.Device, subnet, version string, now time.Time, reliability model.ScanReliability, path string) error {
 	sorted := sortDevices(devices)
 
 	var jDevices []jsonDevice
@@ -285,9 +353,10 @@ func writeJSON(data reportData, devices []*model.Device, subnet, version string,
 	}
 
 	jr := jsonReport{
-		Version:  version,
-		ScanTime: now.Format(time.RFC3339),
-		Network:  subnet,
+		Version:     version,
+		ScanTime:    now.Format(time.RFC3339),
+		Network:     subnet,
+		Reliability: string(reliability),
 		Summary: jsonSummary{
 			Total:  data.Summary.Total,
 			High:   data.Summary.High,
@@ -321,6 +390,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica N
 .header .meta{color:#94A3B8;margin-top:.5rem;font-size:.9rem}
 .header .meta span{color:#38BDF8;font-weight:600}
 .container{max-width:1100px;margin:0 auto;padding:2rem 2.5rem}
+.headline{border-radius:.75rem;padding:1.75rem 2rem;margin-bottom:2rem;color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.headline h2{font-size:1.75rem;font-weight:700;letter-spacing:-.02em;margin-bottom:.5rem;color:inherit;border:none;padding:0}
+.headline p{font-size:.95rem;opacity:.95}
+.headline-alert{background:linear-gradient(135deg,#B91C1C 0%,#991B1B 100%)}
+.headline-warn{background:linear-gradient(135deg,#D97706 0%,#B45309 100%)}
+.headline-clear{background:linear-gradient(135deg,#15803D 0%,#166534 100%)}
 .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:2rem}
 .summary-card{background:#fff;border-radius:.5rem;padding:1.25rem;text-align:center;border-top:3px solid;box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .summary-card .count{font-size:2rem;font-weight:700;line-height:1.2}
@@ -329,9 +404,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica N
 .card-high{border-color:#EF4444}.card-high .count{color:#B91C1C}.card-high .label{color:#991B1B}
 .card-medium{border-color:#F59E0B}.card-medium .count{color:#B45309}.card-medium .label{color:#92400E}
 .card-low{border-color:#22C55E}.card-low .count{color:#15803D}.card-low .label{color:#166534}
-.alert{background:#FEF2F2;border:1px solid #FECACA;border-left:4px solid #EF4444;border-radius:.5rem;padding:1rem 1.25rem;margin-bottom:2rem;color:#991B1B;font-weight:600;font-size:.95rem}
-.all-clear{background:#F0FDF4;border:1px solid #BBF7D0;border-left:4px solid #22C55E;border-radius:.5rem;padding:1rem 1.25rem;margin-bottom:2rem;color:#166534;font-weight:600;font-size:.95rem}
-h2{font-size:1.25rem;font-weight:700;color:#0F172A;margin-bottom:1rem;padding-bottom:.5rem;border-bottom:2px solid #E2E8F0}
+.notice{border-radius:.5rem;padding:1rem 1.25rem;margin-bottom:2rem;font-weight:600;font-size:.95rem;border-left:4px solid}
+.notice-warn{background:#FFFBEB;border-color:#F59E0B;color:#92400E}
+.notice-info{background:#EFF6FF;border-color:#3B82F6;color:#1E3A8A}
+h2{font-size:1.25rem;font-weight:700;color:#0F172A;margin:2rem 0 1rem;padding-bottom:.5rem;border-bottom:2px solid #E2E8F0}
+h2:first-child{margin-top:0}
 .table-wrap{overflow-x:auto;margin-bottom:2.5rem}
 table{width:100%;border-collapse:collapse;font-size:.875rem}
 thead th{background:#1E293B;color:#F8FAFC;font-weight:600;text-align:left;padding:.75rem 1rem;white-space:nowrap}
@@ -368,10 +445,25 @@ h4{font-size:.8rem;font-weight:700;color:#475569;margin:1.25rem 0 .5rem;text-tra
 .reason-list li::before{content:"\2022";margin-right:.5rem;font-weight:700}
 .reason-high li{color:#B91C1C}
 .reason-medium li{color:#B45309}
+.guide-section{background:#fff;border-radius:.5rem;padding:1.5rem 1.75rem;margin-bottom:1.25rem;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.guide-section h3{font-size:1rem;font-weight:700;color:#0F172A;margin-bottom:.75rem}
+.guide-section ul{list-style:none;padding:0}
+.guide-section li{padding:.375rem 0 .375rem 1.25rem;position:relative;font-size:.9rem;color:#334155}
+.guide-section li::before{content:"\2192";position:absolute;left:0;color:#38BDF8;font-weight:700}
+.guide-section li a{color:#0369A1;text-decoration:none;border-bottom:1px solid #BAE6FD;word-break:break-all}
+.limits{background:#F1F5F9;border-radius:.5rem;padding:1.25rem 1.5rem;margin-bottom:2.5rem;font-size:.875rem;color:#475569}
+.limits ul{list-style:none;padding:0}
+.limits li{padding:.25rem 0 .25rem 1.25rem;position:relative}
+.limits li::before{content:"\2022";position:absolute;left:.25rem;color:#94A3B8;font-weight:700}
+.legal{background:#FFF7ED;border:1px solid #FED7AA;border-left:4px solid #F59E0B;border-radius:.5rem;padding:1.25rem 1.5rem;margin-bottom:2.5rem;font-size:.85rem;color:#7C2D12}
+.legal .legal-lead{font-weight:700;margin-bottom:.75rem;font-size:.9rem;color:#9A3412}
+.legal ul{list-style:none;padding:0}
+.legal li{padding:.3rem 0 .3rem 1.25rem;position:relative;line-height:1.55}
+.legal li::before{content:"\2022";position:absolute;left:.25rem;color:#C2410C;font-weight:700}
 .footer{margin-top:2.5rem;padding-top:1.5rem;border-top:2px solid #E2E8F0;text-align:center;font-size:.8rem;color:#94A3B8}
 .footer p{margin-bottom:.5rem}
-@media print{body{background:#fff}.header{break-after:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact}.device-card{break-inside:avoid}.summary{break-inside:avoid}thead th{-webkit-print-color-adjust:exact;print-color-adjust:exact}.badge{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-@media(max-width:768px){.summary{grid-template-columns:repeat(2,1fr)}.container{padding:1rem}.header{padding:1.5rem 1rem}.device-meta{grid-template-columns:1fr}}
+@media print{body{background:#fff}.header,.headline{break-after:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact}.device-card{break-inside:avoid}.summary{break-inside:avoid}.guide-section{break-inside:avoid}thead th{-webkit-print-color-adjust:exact;print-color-adjust:exact}.badge{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+@media(max-width:768px){.summary{grid-template-columns:repeat(2,1fr)}.container{padding:1rem}.header{padding:1.5rem 1rem}.device-meta{grid-template-columns:1fr}.headline{padding:1.25rem 1.5rem}.headline h2{font-size:1.4rem}}
 </style>
 </head>
 <body>
@@ -382,6 +474,17 @@ h4{font-size:.8rem;font-weight:700;color:#475569;margin:1.25rem 0 .5rem;text-tra
 </div>
 
 <div class="container">
+
+  <div class="headline {{.HeadlineClass}}">
+    <h2>{{.HeadlineText}}</h2>
+    <p>{{.HeadlineSub}}</p>
+  </div>
+
+  {{if .IsolationWarning -}}
+  <div class="notice notice-warn">
+    The scanner saw very few devices on this network. That is consistent with AP / client isolation, where the router prevents devices from seeing each other. A hidden camera on this network would not show up in the scan results below &mdash; treat the physical check as the primary detection method here.
+  </div>
+  {{- end}}
 
   <div class="summary">
     <div class="summary-card card-total">
@@ -401,16 +504,6 @@ h4{font-size:.8rem;font-weight:700;color:#475569;margin:1.25rem 0 .5rem;text-tra
       <div class="label">Low Risk</div>
     </div>
   </div>
-
-  {{if .HasHigh -}}
-  <div class="alert">
-    &#9888; {{.HighCount}} HIGH RISK device{{if gt .HighCount 1}}s{{end}} detected &mdash; review the flagged devices below.
-  </div>
-  {{- else -}}
-  <div class="all-clear">
-    &#10003; No high-risk devices detected on this network.
-  </div>
-  {{- end}}
 
   <h2>All Devices</h2>
   <div class="table-wrap">
@@ -481,10 +574,48 @@ h4{font-size:.8rem;font-weight:700;color:#475569;margin:1.25rem 0 .5rem;text-tra
   {{- end}}
   {{- end}}
 
+  <h2>Physical Check</h2>
+  <p style="margin-bottom:1rem;color:#475569">Take 60 seconds to do this even if the scan came back clean. It catches the threats network scanning can't see.</p>
+  {{range .PhysicalCheck -}}
+  <div class="guide-section">
+    <h3>{{.Title}}</h3>
+    <ul>
+      {{range .Items}}<li>{{.}}</li>{{end}}
+    </ul>
+  </div>
+  {{- end}}
+
+  <h2>If You Found Something</h2>
+  <p style="margin-bottom:1rem;color:#475569">The order matters: document first, then escalate. Do not confront the host on-site.</p>
+  {{range .WhatToDo -}}
+  <div class="guide-section">
+    <h3>{{.Title}}</h3>
+    <ul>
+      {{range .Items}}<li>{{.}}</li>{{end}}
+    </ul>
+  </div>
+  {{- end}}
+
+  <h2>What This Scan Cannot See</h2>
+  <div class="limits">
+    <ul>
+      {{range .Limits}}<li>{{.}}</li>{{end}}
+    </ul>
+  </div>
+
+  <h2>Legal Notice &mdash; Not Legal Advice</h2>
+  <div class="legal">
+    <p class="legal-lead">This report is generated by an unaffiliated tool, provided AS IS, with NO WARRANTY and NO LIABILITY. It is NOT legal advice.</p>
+    <ul>
+      {{range .LegalNotice}}<li>{{.}}</li>{{end}}
+    </ul>
+  </div>
+
   <div class="footer">
     <p>Generated by <strong>SafeStay Scanner</strong> {{.AppVersion}}</p>
-    <p>This report is for personal safety and informational purposes only. Always contact local authorities if you believe a crime has occurred.</p>
-    <p>Do not scan networks without authorization. Results may contain false positives.</p>
+    <p>This report is for personal safety and informational purposes only. It is not a legal document, an accusation, or proof of any wrongdoing. Results may contain false positives and false negatives.</p>
+    <p>If you believe a crime has occurred, contact local law enforcement and consult a licensed attorney in your jurisdiction. Do not rely on this report as a substitute for either.</p>
+    <p>SafeStay is not affiliated with Airbnb, any hotel chain, or any vendor named in this report. Vendor names appear only as technical references.</p>
   </div>
 
 </div>

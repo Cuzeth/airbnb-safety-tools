@@ -4,7 +4,10 @@ import "abdeen.dev/safestay/internal/model"
 
 // DevicesDiscoveredMsg is sent when device discovery completes.
 type DevicesDiscoveredMsg struct {
-	Devices []*model.Device
+	Devices     []*model.Device
+	Reliability model.ScanReliability
+	GatewayIP   string
+	LocalIP     string
 }
 
 // DeviceScanCompleteMsg is sent when port scanning completes for one device.

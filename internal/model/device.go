@@ -26,6 +26,23 @@ func (r RiskLevel) Label() string {
 	}
 }
 
+// ScanReliability indicates how trustworthy a scan's coverage is.
+// A guest WiFi with AP/client isolation can hide devices entirely, so a
+// "clean" result on such a network is meaningless.
+type ScanReliability string
+
+const (
+	// ReliabilityNormal means the scan saw a typical population of devices.
+	ReliabilityNormal ScanReliability = "normal"
+	// ReliabilityPartial means we found very few devices — the network may
+	// be partially isolated or empty. Results should be treated with caution.
+	ReliabilityPartial ScanReliability = "partial"
+	// ReliabilityIsolated means we only saw the gateway and/or our own host —
+	// the network is almost certainly using client/AP isolation and network
+	// scanning is not a reliable detection method here.
+	ReliabilityIsolated ScanReliability = "isolated"
+)
+
 // DeviceCategory classifies a network device.
 type DeviceCategory string
 

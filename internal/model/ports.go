@@ -42,14 +42,28 @@ var PortDatabase = map[int]PortInfo{
 			"management functions alongside port 8000",
 	},
 	6668: {
-		Port: 6668, Protocol: "Wyze-TUTK", Risk: RiskHigh, WebOpenable: false,
-		Description: "Wyze camera TUTK P2P protocol — used by Wyze Cam v1/v2/v3 for " +
-			"peer-to-peer video streaming through their IoTCAM/TUTK SDK",
+		Port: 6668, Protocol: "Tuya/Wyze-P2P", Risk: RiskHigh, WebOpenable: false,
+		Description: "Tuya Smart local-control port and Wyze TUTK P2P port — Tuya is " +
+			"the firmware platform behind a large fraction of unbranded WiFi " +
+			"hidden cameras sold on AliExpress and Amazon. Also used by Wyze " +
+			"Cam v1/v2/v3 for peer-to-peer video streaming",
 	},
 	6669: {
-		Port: 6669, Protocol: "Wyze-TUTK", Risk: RiskHigh, WebOpenable: false,
-		Description: "Wyze camera secondary TUTK port — alternate P2P streaming port " +
-			"used by Wyze devices for redundancy",
+		Port: 6669, Protocol: "Tuya/Wyze-P2P", Risk: RiskHigh, WebOpenable: false,
+		Description: "Alternate Tuya / Wyze TUTK port — secondary P2P streaming " +
+			"channel used by Tuya-firmware cameras and Wyze devices",
+	},
+	6667: {
+		Port: 6667, Protocol: "Tuya-Discovery", Risk: RiskMedium, WebOpenable: false,
+		Description: "Tuya Smart discovery port — used during initial device pairing " +
+			"and broadcast-based discovery by Tuya-firmware IoT devices, " +
+			"including unbranded hidden cameras",
+	},
+	8883: {
+		Port: 8883, Protocol: "MQTT-TLS", Risk: RiskMedium, WebOpenable: false,
+		Description: "MQTT over TLS — primary cloud channel for Tuya, Smart Life, " +
+			"and many ESP32-based devices. An MQTT-TLS port open on an " +
+			"unknown vendor is consistent with a cloud-streaming hidden camera",
 	},
 	34567: {
 		Port: 34567, Protocol: "XMEye/Xiongmai", Risk: RiskHigh, WebOpenable: false,

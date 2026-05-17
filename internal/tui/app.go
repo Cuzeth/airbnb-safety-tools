@@ -33,6 +33,14 @@ const (
 	focusDetail
 )
 
+// viewMode toggles between the normal scan layout and the safety-guide overlay.
+type viewMode int
+
+const (
+	modeNormal viewMode = iota
+	modeGuide
+)
+
 // AppModel is the top-level Bubble Tea model.
 type AppModel struct {
 	table        tableModel
@@ -43,6 +51,10 @@ type AppModel struct {
 	detailHeight int
 	compact      bool
 	focus        focusPane
+
+	mode      viewMode
+	guideVP   viewport.Model
+	guideText string
 
 	statusBar    string
 	banner       string
@@ -55,6 +67,7 @@ type AppModel struct {
 	notification string
 	emptyMessage string
 	statusCounts *scanCounts
+	reliability  model.ScanReliability
 	program      *tea.Program
 }
 
@@ -73,12 +86,14 @@ func NewApp(version string) AppModel {
 	return AppModel{
 		table:        newTableModel(),
 		focus:        focusTable,
-		statusBar:    "Press s to scan  |  Devices: 0",
+		mode:         modeNormal,
+		statusBar:    "Press s to scan  |  ? for help",
 		banner:       banner,
 		subnet:       subnet,
 		devices:      make(map[string]*model.Device),
 		version:      version,
-		emptyMessage: "Press s to scan the local network",
+		reliability:  model.ReliabilityNormal,
+		emptyMessage: "Press s to scan the local network. Press ? for the physical-check guide.",
 	}
 }
 
@@ -128,8 +143,14 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.devices[device.MAC] = device
 			m.table.AddDevice(device)
 		}
+		m.reliability = msg.Reliability
 		m.statusBar = fmt.Sprintf("Found %d devices. Port scanning...", len(msg.Devices))
 		m.statusCounts = nil
+		if msg.Reliability == model.ReliabilityIsolated {
+			m.notification = "Network appears isolated. Press ? for the physical-check guide."
+		} else if msg.Reliability == model.ReliabilityPartial {
+			m.notification = "Few devices found — results may be incomplete. Press ? for the physical-check guide."
+		}
 		m.updateDetail()
 		m.startPortScans(msg.Devices)
 		return m, nil
@@ -137,8 +158,9 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case NoDevicesMsg:
 		m.scanning = false
 		m.resetResults()
+		m.reliability = model.ReliabilityIsolated
 		m.emptyMessage = msg.Reason
-		m.statusBar = "No devices found. The network may use client isolation."
+		m.statusBar = "No devices found. Network may use AP isolation. Press ? for the physical check."
 		m.statusCounts = nil
 		m.notification = msg.Reason
 		return m, nil
@@ -170,7 +192,9 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			Low:    msg.Low,
 		}
 		if msg.High > 0 {
-			m.notification = HighRiskText.Render(fmt.Sprintf("Found %d HIGH risk device(s)!", msg.High))
+			m.notification = renderGuideBanner(msg.High)
+		} else if m.reliability == model.ReliabilityNormal {
+			m.notification = "No high-risk devices detected — but always pair this with a physical sweep (press ?)."
 		}
 		return m, nil
 
@@ -197,10 +221,37 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *AppModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	key := msg.String()
 
+	// Guide overlay swallows most keys.
+	if m.mode == modeGuide {
+		switch key {
+		case "q", "ctrl+c":
+			return m, tea.Quit
+		case "?", "esc":
+			m.mode = modeNormal
+			return m, nil
+		case "up", "k":
+			m.guideVP.LineUp(1)
+		case "down", "j":
+			m.guideVP.LineDown(1)
+		case "pgup":
+			m.guideVP.ViewUp()
+		case "pgdown", " ":
+			m.guideVP.ViewDown()
+		case "home", "g":
+			m.guideVP.GotoTop()
+		case "end", "G":
+			m.guideVP.GotoBottom()
+		}
+		return m, nil
+	}
+
 	// Global keys (work regardless of focus)
 	switch key {
 	case "q", "ctrl+c":
 		return m, tea.Quit
+	case "?":
+		m.openGuide()
+		return m, nil
 	case "s":
 		if m.scanning || m.subnet == "" {
 			if m.subnet == "" {
@@ -331,9 +382,10 @@ func (m *AppModel) exportReport() tea.Cmd {
 	}
 	subnet := m.subnet
 	version := m.version
+	reliability := m.reliability
 
 	return func() tea.Msg {
-		path, err := report.Generate(devices, subnet, version)
+		path, err := report.GenerateWithReliability(devices, subnet, version, reliability)
 		if err != nil {
 			return ReportErrorMsg{Err: err}
 		}
@@ -344,15 +396,28 @@ func (m *AppModel) exportReport() tea.Cmd {
 func (m *AppModel) startDiscovery() tea.Cmd {
 	subnet := m.subnet
 	return func() tea.Msg {
-		devices, err := network.DiscoverDevices(subnet)
+		result, err := network.DiscoverDevices(subnet)
 		if err != nil {
 			return ErrorMsg{Err: err}
 		}
-		if len(devices) == 0 {
-			return NoDevicesMsg{Reason: "No devices found. The network may use AP isolation or client isolation."}
+		if len(result.Devices) == 0 {
+			return NoDevicesMsg{Reason: "No devices found. The network may use AP isolation or client isolation — press ? for the physical-check guide."}
 		}
-		return DevicesDiscoveredMsg{Devices: devices}
+		return DevicesDiscoveredMsg{
+			Devices:     result.Devices,
+			Reliability: result.Reliability,
+			GatewayIP:   result.GatewayIP,
+			LocalIP:     result.LocalIP,
+		}
 	}
+}
+
+func (m *AppModel) openGuide() {
+	m.mode = modeGuide
+	m.recalcLayout()
+	m.guideText = renderGuide(m.guideVP.Width)
+	m.guideVP.SetContent(m.guideText)
+	m.guideVP.GotoTop()
 }
 
 func (m *AppModel) startPortScans(devices []*model.Device) {
@@ -449,6 +514,21 @@ func (m *AppModel) recalcLayout() {
 		content := renderDetail(m.detailDevice, m.detailWidth)
 		m.detailVP.SetContent(content)
 	}
+
+	// Guide overlay uses full inner width.
+	guideWidth := m.width - DetailPanelStyle.GetHorizontalFrameSize()
+	if guideWidth < 20 {
+		guideWidth = 20
+	}
+	m.guideVP.Width = guideWidth
+	m.guideVP.Height = mainHeight - detailFrameH
+	if m.guideVP.Height < 1 {
+		m.guideVP.Height = 1
+	}
+	if m.mode == modeGuide {
+		m.guideText = renderGuide(guideWidth)
+		m.guideVP.SetContent(m.guideText)
+	}
 }
 
 func (m *AppModel) View() string {
@@ -456,20 +536,41 @@ func (m *AppModel) View() string {
 		return ""
 	}
 
-	// ── Header ──
 	header := renderSizedLine(HeaderStyle, m.width, "SafeStay Scanner")
 
-	// ── Banner ──
-	bannerText := m.banner
-	if m.notification != "" {
-		bannerText += "  |  " + m.notification
-	}
+	bannerText := m.bannerText()
 	bannerLine := renderSizedLine(BannerStyle, m.width, truncateWidth(bannerText, m.width-BannerStyle.GetHorizontalFrameSize()))
 
-	// ── Table (left) ──
+	mainContent := m.renderMain()
+	mainContent = clampHeight(mainContent, m.height-chromeLines)
+
+	status := m.renderStatusBar()
+
+	help := renderSizedLine(HelpStyle, m.width, truncateWidth(m.helpText(), m.width-HelpStyle.GetHorizontalFrameSize()))
+
+	return header + "\n" + bannerLine + "\n" + mainContent + "\n" + status + "\n" + help
+}
+
+// bannerText composes the top banner, prepending an isolation warning when
+// the most recent scan was unreliable.
+func (m *AppModel) bannerText() string {
+	parts := []string{m.banner}
+	if m.reliability == model.ReliabilityIsolated || m.reliability == model.ReliabilityPartial {
+		parts = append(parts, renderIsolationBanner(m.width))
+	}
+	if m.notification != "" {
+		parts = append(parts, m.notification)
+	}
+	return strings.Join(parts, "  |  ")
+}
+
+func (m *AppModel) renderMain() string {
+	if m.mode == modeGuide {
+		return renderSizedBlock(DetailPanelStyle.BorderForeground(sky400), m.width, m.height-chromeLines, m.guideVP.View())
+	}
+
 	tableView := m.table.View(m.emptyMessage)
 
-	// ── Detail (right) ──
 	var detailContent string
 	if m.detailDevice != nil {
 		detailContent = m.detailVP.View()
@@ -482,37 +583,30 @@ func (m *AppModel) View() string {
 		detailContent = renderDetailPlaceholder(m.detailWidth, title, body)
 	}
 
-	// Style the detail panel — highlight border when focused.
 	dpStyle := DetailPanelStyle
 	if m.focus == focusDetail {
 		dpStyle = dpStyle.BorderForeground(sky400)
 	}
-
 	detailPanel := renderSizedBlock(dpStyle, m.detailPaneW, m.detailHeight, detailContent)
 
-	mainContent := tableView
 	if m.compact {
 		if m.focus == focusDetail {
-			mainContent = detailPanel
+			return detailPanel
 		}
-	} else {
-		mainContent = lipgloss.JoinHorizontal(lipgloss.Top, tableView, detailPanel)
+		return tableView
 	}
-	mainContent = clampHeight(mainContent, m.height-chromeLines)
+	return lipgloss.JoinHorizontal(lipgloss.Top, tableView, detailPanel)
+}
 
-	// ── Status bar ──
-	status := m.renderStatusBar()
-
-	// ── Help ──
-	var helpText string
-	if m.focus == focusDetail {
-		helpText = "tab table  |  j/k scroll  |  pgup/pgdn page  |  g/G top/bottom  |  s scan  |  q quit"
-	} else {
-		helpText = "s scan  |  e export  |  o open  |  1-9 port  |  j/k navigate  |  tab details  |  q quit"
+func (m *AppModel) helpText() string {
+	switch {
+	case m.mode == modeGuide:
+		return "j/k scroll  |  pgup/pgdn page  |  g/G top/bottom  |  ? or esc close  |  q quit"
+	case m.focus == focusDetail:
+		return "tab table  |  j/k scroll  |  pgup/pgdn page  |  g/G top/bottom  |  s scan  |  ? help  |  q quit"
+	default:
+		return "s scan  |  e export  |  o open  |  1-9 port  |  j/k navigate  |  tab details  |  ? help  |  q quit"
 	}
-	help := renderSizedLine(HelpStyle, m.width, truncateWidth(helpText, m.width-HelpStyle.GetHorizontalFrameSize()))
-
-	return header + "\n" + bannerLine + "\n" + mainContent + "\n" + status + "\n" + help
 }
 
 func (m *AppModel) renderStatusBar() string {

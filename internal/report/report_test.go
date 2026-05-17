@@ -89,9 +89,16 @@ func TestHTMLContainsDevices(t *testing.T) {
 		"Realtek Semiconductor",
 		"Cisco Systems",
 		"192.168.1.0/24",
-		"HIGH RISK",
+		"HIGH-risk device",
 		"Flagged Devices",
 		"RTSP port open",
+		"Physical Check",
+		"If You Found Something",
+		"airbnb.com/help/article/3061",
+		"Legal Notice",
+		"NO WARRANTY",
+		"NOT legal advice",
+		"not affiliated with Airbnb",
 	} {
 		if !strings.Contains(content, want) {
 			t.Errorf("HTML missing expected content: %q", want)
@@ -116,8 +123,11 @@ func TestHTMLHighRiskAlert(t *testing.T) {
 	defer os.Remove(strings.TrimSuffix(path, ".html") + ".json")
 
 	html, _ := os.ReadFile(path)
-	if !strings.Contains(string(html), "1 HIGH RISK device detected") {
+	if !strings.Contains(string(html), "1 HIGH-risk device detected") {
 		t.Error("expected high risk alert banner")
+	}
+	if !strings.Contains(string(html), "headline-alert") {
+		t.Error("expected alert headline class")
 	}
 }
 
@@ -140,6 +150,34 @@ func TestHTMLAllClear(t *testing.T) {
 	html, _ := os.ReadFile(path)
 	if !strings.Contains(string(html), "No high-risk devices detected") {
 		t.Error("expected all-clear banner")
+	}
+	if !strings.Contains(string(html), "headline-clear") {
+		t.Error("expected clear headline class")
+	}
+}
+
+func TestHTMLIsolationWarning(t *testing.T) {
+	devices := []*model.Device{
+		{IP: "10.0.0.1", MAC: "AA", Vendor: "Router", RiskLevel: model.RiskLow, ScanComplete: true},
+	}
+
+	path, err := GenerateWithReliability(devices, "10.0.0.0/24", "test", model.ReliabilityIsolated)
+	if err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+	defer os.Remove(path)
+	defer os.Remove(strings.TrimSuffix(path, ".html") + ".json")
+
+	html, _ := os.ReadFile(path)
+	content := string(html)
+	for _, want := range []string{
+		"Scan was unreliable",
+		"headline-warn",
+		"AP / client isolation",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("isolation report missing %q", want)
+		}
 	}
 }
 
