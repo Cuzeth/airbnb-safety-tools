@@ -53,7 +53,7 @@ func TestKnownConsumerCameraGetsDisclosureNote(t *testing.T) {
 	if device.RiskLevel != model.RiskHigh {
 		t.Fatalf("expected HIGH for consumer camera brand, got %s", device.RiskLevel)
 	}
-	if !containsReason(device.RiskReasons, "Hosts are required by Airbnb") {
+	if !containsReason(device.RiskReasons, "legitimately disclosed") {
 		t.Fatalf("expected disclosure note for consumer camera brand, got %v", device.RiskReasons)
 	}
 }

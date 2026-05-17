@@ -1,17 +1,13 @@
 # Contributing
 
-Thank you for considering a contribution to SafeStay. This repository is
-maintained on a best-effort basis. The notes below are short by design:
-keep changes focused, keep PRs small, and read the disclaimer in
-`DISCLAIMER.md` before working on anything that could change the tool's
-risk profile.
+Thank you for considering a contribution. This repository is maintained on a
+best-effort basis. Keep changes focused and PRs small.
 
 ## Licensing of contributions
 
-By submitting a pull request to this repository, you agree that your
-contribution is licensed under the same MIT terms as the rest of the
-project (this is the standard inbound-equals-outbound convention used by
-projects hosted on GitHub).
+By submitting a pull request, you agree your contribution is licensed under
+the same MIT terms as the rest of the project (inbound-equals-outbound, the
+standard GitHub convention).
 
 ## Building
 
@@ -26,11 +22,10 @@ same locally before opening a PR.
 ## Style
 
 - Go code follows `gofmt` and standard `go vet` conventions.
-- Comments explain *why*, not *what*; the surrounding code already shows
-  what.
-- New detection rules (vendors, OUI prefixes, ports) should cite a
-  publicly verifiable source in the commit message — IEEE OUI registry
-  entry, vendor documentation, CVE, security write-up, etc.
+- Comments explain *why*, not *what*.
+- New detection rules (vendors, OUI prefixes, ports) should cite a publicly
+  verifiable source in the commit message — IEEE OUI registry entry, vendor
+  documentation, CVE, security write-up, etc.
 
 ## Adding new detection rules
 
@@ -51,39 +46,32 @@ Each detection rule should:
 ## Regenerating OUI data
 
 `internal/oui/mac-vendors.txt` is derived from the IEEE MA-L public OUI
-registry. To regenerate it from the authoritative source:
+registry. To regenerate from the source:
 
 ```bash
-# Download the current IEEE OUI registry
 curl -fsSL https://standards-oui.ieee.org/oui/oui.txt -o /tmp/ieee-oui.txt
-
 # Convert IEEE's text format to the "PREFIX:Vendor Name" form used here.
-# (Implementation left to contributors; sketch:)
-#   - Find lines of the form "AA-BB-CC   (hex)        Vendor Name"
-#   - Emit "AABBCC:Vendor Name"
-#   - Sort and write to internal/oui/mac-vendors.txt
+# (Implementation left to contributors.)
 ```
-
-When you regenerate, please update the date in `NOTICE` and call out the
-diff in your PR description.
 
 ## Reporting security issues
 
 Do **not** open a public GitHub issue for a security finding. See
 `SECURITY.md` for the disclosure channel.
 
-## What is in scope for this project
+## Scope
+
+In scope:
 
 - Detection of cameras and camera-adjacent devices on the local subnet.
 - Physical-check guidance for threats a network scan cannot see.
 - Reporting and export functionality.
 
-What is out of scope:
+Out of scope (PRs will be declined):
 
-- Active exploitation (default-credential bruteforce, frame grabbing,
-  authentication bypass attempts). SafeStay is a passive detector; it
-  must not become an offensive tool.
+- Active exploitation of discovered devices: default-credential brute force,
+  frame grabbing, authentication bypass, RCE. SafeStay sends ARP/ICMP/TCP/UDP
+  probes and TCP connect scans on a fixed port list; it never interacts with
+  a discovered service beyond opening and closing a connection.
 - Cloud or platform integrations (Airbnb API, etc.).
 - Cross-subnet, VLAN-hopping, or layer-2 attacks.
-
-PRs adding those capabilities will be declined.

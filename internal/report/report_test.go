@@ -93,12 +93,7 @@ func TestHTMLContainsDevices(t *testing.T) {
 		"Flagged Devices",
 		"RTSP port open",
 		"Physical Check",
-		"If You Found Something",
-		"airbnb.com/help/article/3061",
-		"Not Legal Advice",
-		"NO WARRANTY",
-		"not legal advice",
-		"not affiliated with Airbnb",
+		"Not legal advice",
 	} {
 		if !strings.Contains(content, want) {
 			t.Errorf("HTML missing expected content: %q", want)

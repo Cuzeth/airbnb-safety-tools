@@ -41,7 +41,7 @@ Out of scope:
 - Issues that require physical access to the user's machine or a
   malicious local user with sudo.
 - Reports based on running SafeStay against networks you do not own or
-  have authorization to scan. See `DISCLAIMER.md`.
+  have authorization to scan.
 
 ## Supported versions
 
@@ -52,9 +52,10 @@ fixes for older releases.
 
 Release binaries published at
 <https://github.com/Cuzeth/airbnb-safety-tools/releases> are accompanied
-by a `checksums.txt` file containing SHA-256 hashes. The bundled
-`install.sh` verifies the downloaded binary against that file before
-installing it. To verify manually:
+by a `checksums.txt` file containing SHA-256 hashes. The file is hosted
+over HTTPS but is **not** cryptographically signed — verification protects
+against transport corruption, not against a compromised release. To verify
+manually:
 
 ```bash
 curl -L -o safestay-linux-amd64 \

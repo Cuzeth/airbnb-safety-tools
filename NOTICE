@@ -16,10 +16,10 @@ derived from the IEEE MA-L (MAC Address Block Large) public registry:
     https://standards-oui.ieee.org/oui/oui.txt
     https://standards.ieee.org/products-services/regauth/
 
-The IEEE OUI registry is distributed by IEEE without restriction and is the
-canonical source for vendor-to-OUI assignments. The data in this repository
-should be regenerated from the IEEE source on a periodic basis; see the
-"Regenerating OUI data" section of CONTRIBUTING.md.
+The IEEE publishes the MA-L registry as a freely-downloadable public
+registry. The vendor-to-OUI assignments are factual data redistributed
+here as a lookup table. See "Regenerating OUI data" in CONTRIBUTING.md
+for the refresh procedure.
 
 ────────────────────────────────────────────────────────────────────────
 Third-party Go modules

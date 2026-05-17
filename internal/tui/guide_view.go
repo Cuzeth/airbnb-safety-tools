@@ -28,23 +28,13 @@ func renderGuide(width int) string {
 	writeSections(&b, guide.PhysicalCheck, width)
 
 	b.WriteString("\n")
-	writeGuideHeading(&b, "If You Found Something")
-	b.WriteString(DimStyle.Render(wrapPlain(
-		"The list below summarises Airbnb's own published guidance and widely-cited "+
-			"safety reporting. It is not advice from this software's author. Personal "+
-			"safety decisions are yours alone — for those, contact local authorities "+
-			"and a licensed attorney in the relevant jurisdiction.", width)))
-	b.WriteString("\n\n")
-	writeSections(&b, guide.IfYouFoundSomething, width)
-
-	b.WriteString("\n")
 	writeGuideHeading(&b, "What This Tool Cannot See")
 	for _, line := range guide.Limits {
 		writeBullet(&b, line, width, &DimStyle)
 	}
 
 	b.WriteString("\n")
-	writeGuideHeading(&b, "Legal Notice — Not Legal Advice")
+	writeGuideHeading(&b, "Notice")
 	for _, line := range guide.LegalNotice {
 		writeBullet(&b, line, width, &DimStyle)
 	}
@@ -67,7 +57,7 @@ func renderGuideBanner(highCount int) string {
 	}
 	return HighRiskText.Render(fmt.Sprintf(
 		"%d HIGH risk device%s detected.", highCount, plural,
-	)) + " " + BoldCyanStyle.Render("Press ?") + DimStyle.Render(" for what to do next")
+	)) + " " + BoldCyanStyle.Render("Press ?") + DimStyle.Render(" for the physical-check guide")
 }
 
 // renderIsolationBanner returns a one-line warning when the scan is unreliable.

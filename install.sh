@@ -16,11 +16,9 @@
 # pipes a second curl|bash. If verification fails, it aborts and prints
 # exactly what happened.
 #
-# Per the project's DISCLAIMER.md: SafeStay is provided AS IS, with NO
-# WARRANTY and NO LIABILITY (per the MIT license). It is NOT legal advice.
-# Network scanning may be illegal in your jurisdiction — you alone are
-# responsible for confirming you have authorization to scan before
-# scanning. Full text: https://github.com/Cuzeth/airbnb-safety-tools/blob/main/DISCLAIMER.md
+# SafeStay is MIT-licensed: AS IS, no warranty, no liability. Not legal
+# advice. Network scanning may be illegal where you are — that's on you to
+# check before running it.
 
 set -euo pipefail
 
@@ -144,10 +142,9 @@ print_next_steps() {
   echo "  (covers cameras the network scan can't see, plus what to do if"
   echo "  you find one)."
   echo
-  yellow "  Important: this tool is provided AS IS, with no warranty and no"
-  yellow "  liability (per the MIT license). It is not legal advice. Network"
-  yellow "  scanning may be illegal where you are. Run 'safestay --disclaimer'"
-  yellow "  for the full informational notice before using."
+  yellow "  MIT-licensed: AS IS, no warranty, no liability. Not legal advice."
+  yellow "  Network scanning may be illegal where you are — that's on you to"
+  yellow "  check before running it."
 }
 
 main() {

@@ -39,10 +39,9 @@ var safeVendorIgnorePorts = map[int]string{
 	9000: "Device service port",
 }
 
-// consumerCameraBrands lists known-brand cameras whose presence in a listing
-// must be disclosed by the host. SafeStay still flags them HIGH (the user
-// needs to know they exist) but adds context that this may be a doorbell or
-// outdoor camera the host already disclosed in the listing.
+// consumerCameraBrands lists major consumer camera brands. SafeStay still
+// flags them HIGH (the user needs to know they exist) but notes that they
+// may be a legitimately disclosed device — check the listing.
 var consumerCameraBrands = []string{
 	"ring", "nest", "wyze", "arlo", "eufy", "tp-link/tapo", "tapo",
 }
@@ -87,10 +86,8 @@ func FingerprintDevice(device *model.Device) {
 		))
 		if isConsumerCameraBrand(brand) {
 			reasons = append(reasons,
-				"This is a major consumer-camera brand. Hosts are required by Airbnb "+
-					"to disclose any camera in the listing — check the listing page. "+
-					"An outdoor doorbell or outside-only camera may be legitimate; any "+
-					"camera inside the unit has been prohibited since April 2024.",
+				"This is a major consumer-camera brand. It may be a legitimately "+
+					"disclosed device (e.g. an outdoor doorbell). Check the listing.",
 			)
 		}
 	} else if chipset != "" {
