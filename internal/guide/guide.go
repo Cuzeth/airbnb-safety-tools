@@ -112,18 +112,20 @@ var Limits = []string{
 	"This tool is a starting point, not a guarantee. Always pair it with a physical sweep",
 }
 
-// LegalNotice is the short legal disclaimer rendered at the bottom of the
-// in-app guide and the HTML report. It is intentionally blunt: this software
-// is not legal advice, the author accepts no liability, and the user is the
-// only person responsible for whether running the scan is legal in their
-// situation.
+// LegalNotice is the short informational notice rendered at the bottom of
+// the in-app guide and the HTML report. It is intentionally blunt: this
+// software is not legal advice, the MIT license disclaims liability, and the
+// user is the only person responsible for whether running the scan is legal
+// in their situation.
 var LegalNotice = []string{
-	"This tool is provided AS IS, with NO WARRANTY and NO LIABILITY. The author accepts no responsibility for any consequences of its use.",
+	"This tool is licensed under MIT. The MIT license provides the software AS IS, with NO WARRANTY, and disclaims liability for any claim or damages.",
 	"Nothing in this tool, this guide, or its exported report is legal advice. Contact a licensed attorney in your jurisdiction for actual legal advice.",
-	"The author does NOT condone, encourage, or recommend running this tool against any network, device, host, or person.",
+	"The author does not condone, encourage, or recommend running this tool against any network, device, host, or person.",
 	"Network scanning may be illegal where you are. You alone are responsible for confirming you have authorization to scan before you scan.",
+	"Vendor labels are derived from MAC OUI lookup. They are technical references, not confirmed identifications, and MAC addresses can be spoofed.",
 	"SafeStay is not affiliated with Airbnb, any hotel chain, or any camera vendor. Vendor names appear as technical references only.",
-	"For the full legal notice, see DISCLAIMER.md in the source repository or run `safestay --disclaimer`.",
+	"MAC and IP addresses recorded in this report may be personal data under your jurisdiction's law; you are the data controller for it.",
+	"For the full informational notice, see DISCLAIMER.md in the source repository or run `safestay --disclaimer`.",
 }
 
 // Section is one heading + a list of bullet items.

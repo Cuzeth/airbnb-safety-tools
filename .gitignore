@@ -1,9 +1,8 @@
-.venv/
-__pycache__/
-*.egg-info/
-*.pyc
-dist/
-build/
 .gocache
 .gomodcache
+.DS_Store
 /safestay
+safestay-*
+checksums.txt
+safestay-report-*.html
+safestay-report-*.json

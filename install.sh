@@ -8,19 +8,19 @@
 # What it does:
 #   1. Detects your OS + CPU
 #   2. Downloads the matching prebuilt binary from the latest GitHub release
-#   3. Installs it to ~/.local/bin (no sudo required)
-#   4. Prints how to run it
+#   3. Downloads checksums.txt and verifies the binary's SHA-256 against it
+#   4. Installs it to ~/.local/bin (no sudo required)
+#   5. Prints how to run it
 #
 # This script never asks for sudo, never modifies system paths, and never
-# pipes a second curl|bash. If something fails, it tells you exactly what
-# to do manually.
+# pipes a second curl|bash. If verification fails, it aborts and prints
+# exactly what happened.
 #
-# LEGAL: SafeStay is provided AS IS, with NO WARRANTY and NO LIABILITY. It is
-# NOT legal advice. The author does NOT condone, encourage, or recommend its
-# use. Network scanning may be illegal in your jurisdiction — you alone are
-# responsible for confirming you have authorization to scan before scanning.
-# By running this installer you agree to the full disclaimer at
-# https://github.com/Cuzeth/airbnb-safety-tools/blob/main/DISCLAIMER.md
+# Per the project's DISCLAIMER.md: SafeStay is provided AS IS, with NO
+# WARRANTY and NO LIABILITY (per the MIT license). It is NOT legal advice.
+# Network scanning may be illegal in your jurisdiction — you alone are
+# responsible for confirming you have authorization to scan before
+# scanning. Full text: https://github.com/Cuzeth/airbnb-safety-tools/blob/main/DISCLAIMER.md
 
 set -euo pipefail
 
@@ -60,23 +60,63 @@ detect_platform() {
   PLATFORM="${os}-${arch}"
 }
 
+# Pick a sha256 tool. macOS ships shasum; most Linux ships sha256sum.
+detect_sha256_tool() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    SHA256_CMD="sha256sum"
+  elif command -v shasum >/dev/null 2>&1; then
+    SHA256_CMD="shasum -a 256"
+  else
+    red "Neither sha256sum nor shasum is available."
+    echo "Install one of them and re-run, or download manually with checksum verification."
+    exit 1
+  fi
+}
+
 download_binary() {
-  local url tmp
-  url="https://github.com/$REPO/releases/latest/download/${BIN_NAME}-${PLATFORM}"
-  tmp=$(mktemp)
+  local bin_url checksums_url tmpdir
+  bin_url="https://github.com/$REPO/releases/latest/download/${BIN_NAME}-${PLATFORM}"
+  checksums_url="https://github.com/$REPO/releases/latest/download/checksums.txt"
+  tmpdir=$(mktemp -d)
+  trap "rm -rf '$tmpdir'" EXIT
 
   bold "Downloading SafeStay for $PLATFORM..."
-  if ! curl -fL --progress-bar -o "$tmp" "$url"; then
+  if ! curl -fL --progress-bar -o "$tmpdir/$BIN_NAME" "$bin_url"; then
     red "Download failed."
-    echo "Tried: $url"
+    echo "Tried: $bin_url"
     echo "Check that a release exists at https://github.com/$REPO/releases/latest"
-    rm -f "$tmp"
     exit 1
   fi
 
-  chmod +x "$tmp"
+  bold "Downloading checksums..."
+  if ! curl -fL --silent -o "$tmpdir/checksums.txt" "$checksums_url"; then
+    red "Checksum download failed."
+    echo "Tried: $checksums_url"
+    echo "Aborting: this script will not install an unverified binary."
+    exit 1
+  fi
+
+  bold "Verifying SHA-256..."
+  local expected actual artifact="${BIN_NAME}-${PLATFORM}"
+  expected=$(grep -E "[[:space:]]+\*?${artifact}\$" "$tmpdir/checksums.txt" | awk '{print $1}' | head -n 1)
+  if [ -z "$expected" ]; then
+    red "Could not find a checksum for $artifact in checksums.txt."
+    echo "Aborting: this script will not install an unverified binary."
+    exit 1
+  fi
+  actual=$($SHA256_CMD "$tmpdir/$BIN_NAME" | awk '{print $1}')
+  if [ "$expected" != "$actual" ]; then
+    red "Checksum mismatch!"
+    echo "  expected: $expected"
+    echo "  actual:   $actual"
+    echo "Aborting. Please report this at https://github.com/$REPO/security/advisories/new"
+    exit 1
+  fi
+  green "Checksum OK ($actual)"
+
+  chmod +x "$tmpdir/$BIN_NAME"
   mkdir -p "$INSTALL_DIR"
-  mv "$tmp" "$INSTALL_DIR/$BIN_NAME"
+  mv "$tmpdir/$BIN_NAME" "$INSTALL_DIR/$BIN_NAME"
   green "Installed to: $INSTALL_DIR/$BIN_NAME"
 }
 
@@ -97,20 +137,22 @@ print_next_steps() {
     bold "  sudo safestay"
   fi
   echo
-  echo "  Run with sudo for best results — that enables ARP scanning which"
-  echo "  finds more devices than the non-privileged fallback."
+  echo "  Run with sudo for best results — that lets the discovery phase send"
+  echo "  raw ICMP probes, which puts more devices in the ARP cache."
   echo
   echo "  Inside the TUI, press ? at any time for the physical-check guide"
   echo "  (covers cameras the network scan can't see, plus what to do if"
   echo "  you find one)."
   echo
-  yellow "  LEGAL: This tool is provided AS IS, with NO WARRANTY and NO LIABILITY."
-  yellow "  It is NOT legal advice. Network scanning may be illegal where you are."
-  yellow "  Run 'safestay --disclaimer' for the full legal notice before using."
+  yellow "  Important: this tool is provided AS IS, with no warranty and no"
+  yellow "  liability (per the MIT license). It is not legal advice. Network"
+  yellow "  scanning may be illegal where you are. Run 'safestay --disclaimer'"
+  yellow "  for the full informational notice before using."
 }
 
 main() {
   detect_platform
+  detect_sha256_tool
   download_binary
   print_next_steps
 }

@@ -1,0 +1,69 @@
+SafeStay
+Copyright (c) 2026 Cuzeth
+Licensed under the MIT License. See LICENSE for the full text.
+
+This product includes the following third-party data and software,
+redistributed under their respective licenses. The full license texts are
+listed in THIRD_PARTY_NOTICES.md.
+
+────────────────────────────────────────────────────────────────────────
+MAC OUI vendor data
+────────────────────────────────────────────────────────────────────────
+
+The file internal/oui/mac-vendors.txt contains MAC OUI vendor assignments
+derived from the IEEE MA-L (MAC Address Block Large) public registry:
+
+    https://standards-oui.ieee.org/oui/oui.txt
+    https://standards.ieee.org/products-services/regauth/
+
+The IEEE OUI registry is distributed by IEEE without restriction and is the
+canonical source for vendor-to-OUI assignments. The data in this repository
+should be regenerated from the IEEE source on a periodic basis; see the
+"Regenerating OUI data" section of CONTRIBUTING.md.
+
+────────────────────────────────────────────────────────────────────────
+Third-party Go modules
+────────────────────────────────────────────────────────────────────────
+
+Release binaries statically link the following Go modules. See
+THIRD_PARTY_NOTICES.md for license texts.
+
+  github.com/charmbracelet/bubbletea           — MIT
+  github.com/charmbracelet/bubbles             — MIT
+  github.com/charmbracelet/lipgloss            — MIT
+  github.com/charmbracelet/colorprofile        — MIT
+  github.com/charmbracelet/x/ansi              — MIT
+  github.com/charmbracelet/x/cellbuf           — MIT
+  github.com/charmbracelet/x/term              — MIT
+  github.com/pkg/browser                       — BSD-2-Clause
+  github.com/aymanbagabas/go-osc52/v2          — MIT
+  github.com/clipperhouse/displaywidth         — MIT
+  github.com/clipperhouse/stringish            — MIT
+  github.com/clipperhouse/uax29/v2             — MIT
+  github.com/erikgeiser/coninput               — MIT
+  github.com/lucasb-eyer/go-colorful           — MIT
+  github.com/mattn/go-isatty                   — MIT
+  github.com/mattn/go-localereader             — MIT
+  github.com/mattn/go-runewidth                — MIT
+  github.com/muesli/ansi                       — MIT
+  github.com/muesli/cancelreader               — MIT
+  github.com/muesli/termenv                    — MIT
+  github.com/rivo/uniseg                       — MIT
+  github.com/xo/terminfo                       — MIT
+  golang.org/x/sys                             — BSD-3-Clause
+  golang.org/x/text                            — BSD-3-Clause
+
+────────────────────────────────────────────────────────────────────────
+Trademarks
+────────────────────────────────────────────────────────────────────────
+
+Hikvision, Dahua, Axis, Wyze, Ring, Nest, Reolink, Arlo, Eufy, Foscam,
+Amcrest, Vivotek, Uniview, Hanwha, Wisenet, FLIR, Lorex, Swann, Xiongmai,
+XMEye, TP-Link, Tapo, Ubiquiti, UniFi, Synology, Tuya, Smart Life, Wyze,
+ThroughTek, Kalay, Realtek, Ralink, MediaTek, HiSilicon, Anyka, Ingenic,
+Goke, Espressif, Airbnb, Vrbo, Booking.com, Apple, Google, Amazon, Samsung,
+Sonos, Roku, LG, Microsoft, Intel, Dell, Lenovo, HP, Netgear, Linksys,
+Asus, Arris, Cisco, Motorola, and any other product or company names
+referenced in this software or its documentation are trademarks of their
+respective owners. They are used here solely for identification purposes
+and not as a claim, accusation, endorsement, or recommendation.

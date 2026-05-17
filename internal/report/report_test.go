@@ -95,9 +95,9 @@ func TestHTMLContainsDevices(t *testing.T) {
 		"Physical Check",
 		"If You Found Something",
 		"airbnb.com/help/article/3061",
-		"Legal Notice",
+		"Not Legal Advice",
 		"NO WARRANTY",
-		"NOT legal advice",
+		"not legal advice",
 		"not affiliated with Airbnb",
 	} {
 		if !strings.Contains(content, want) {
