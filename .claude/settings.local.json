@@ -15,7 +15,8 @@
       "Bash(go version:*)",
       "Bash(go test:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git tag *)"
     ]
   }
 }
